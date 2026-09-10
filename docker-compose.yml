@@ -1,0 +1,22 @@
+services:
+  web:
+    build: .
+    container_name: ytaudio
+    ports:
+      - "3000:3000"
+    volumes:
+      # Host source → container (live code changes)
+      - .:/app
+      # Keep container node_modules (host mount se overwrite na ho)
+      - /app/node_modules
+      # Optional: Next.js cache host pe persist
+      - next_cache:/app/.next
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    command: npm run dev -- --hostname 0.0.0.0
+    restart: unless-stopped
+
+volumes:
+  next_cache:

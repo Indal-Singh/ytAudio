@@ -1,0 +1,389 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg-base: #0a0b0e;
+  --bg-surface: #12141a;
+  --bg-elevated: #1a1e27;
+  --bg-hover: #242936;
+  --bg-active: #2f3547;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-active: rgba(255, 0, 51, 0.5);
+
+  --text-primary: #ffffff;
+  --text-secondary: #9ea4b4;
+  --text-muted: #5e6578;
+
+  --yt-red: #ff0033;
+  --yt-red-hover: #ff2a55;
+  --yt-red-glow: rgba(255, 0, 51, 0.35);
+
+  --accent-cyan: #00f0ff;
+  --accent-purple: #9d4edd;
+  --gradient-brand: linear-gradient(135deg, #ff0033 0%, #ff5252 50%, #9d4edd 100%);
+  --gradient-glow: radial-gradient(circle at center, rgba(255, 0, 51, 0.15) 0%, transparent 70%);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.8);
+  --shadow-glow: 0 0 25px var(--yt-red-glow);
+
+  --header-height: 64px;
+  --player-height: 84px;
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 72px;
+
+  --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+input {
+  font-family: inherit;
+  color: inherit;
+  outline: none;
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(18, 20, 26, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+}
+
+.glass-dock {
+  background: rgba(15, 17, 23, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Pulse animation */
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes equalizer {
+  0% { height: 4px; }
+  50% { height: 18px; }
+  100% { height: 8px; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+.animate-pulse-glow {
+  box-shadow: 0 0 15px var(--yt-red-glow);
+}
+
+/* Full-page Initial SSR Preloader */
+#ssr-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background-color: #0a0b0e;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.4s ease;
+  pointer-events: all;
+}
+
+#ssr-preloader.loaded {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ssr-loader-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ssr-loader-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ff0033 0%, #ff5252 50%, #9d4edd 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 35px rgba(255, 0, 51, 0.45);
+  animation: ssr-icon-pulse 2s infinite ease-in-out;
+}
+
+@keyframes ssr-icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 25px rgba(255, 0, 51, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 45px rgba(255, 0, 51, 0.7);
+  }
+}
+
+.ssr-loader-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.ssr-loader-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #00f0ff;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  margin-left: 6px;
+  text-transform: uppercase;
+}
+
+.ssr-spinner-ring {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  border-top-color: #ff0033;
+  border-right-color: #00f0ff;
+  border-radius: 50%;
+  animation: ssr-spin 0.8s linear infinite;
+}
+
+@keyframes ssr-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ssr-loader-msg {
+  font-size: 0.85rem;
+  color: #9ea4b4;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Sidebar gap fix: remove top padding so it sits flush after navbar ─── */
+.sidebar-expanded {
+  padding-top: 0 !important;
+}
+.sidebar-collapsed {
+  padding-top: 0 !important;
+}
+
+@media (min-width: 769px) {
+  .sidebar-expanded,
+  .sidebar-collapsed {
+    position: sticky !important;
+    top: 0 !important;
+  }
+}
+
+/* ─── Search suggestions & history dropdown (global → loads before styled-jsx) ─── */
+.suggestions-dropdown {
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  background: #14161d !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 12px !important;
+  padding: 6px 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.95),
+              0 0 0 1px rgba(255, 255, 255, 0.06) !important;
+  z-index: 2500 !important;
+  max-height: 420px !important;
+  overflow-y: auto !important;
+  animation: dropFadeIn 0.15s ease !important;
+}
+
+@keyframes dropFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Header row: "Recent Searches" … "Clear All" */
+.suggestions-dropdown .suggestions-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 16px 10px !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.7px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  margin-bottom: 4px !important;
+}
+
+.suggestions-dropdown .clear-history-all-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  color: var(--text-muted) !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  padding: 3px 10px !important;
+  border-radius: 4px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: none !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  transition: all 0.15s ease !important;
+}
+
+.suggestions-dropdown .clear-history-all-btn:hover {
+  color: var(--yt-red) !important;
+  background: rgba(255, 0, 51, 0.12) !important;
+}
+
+/* Each suggestion row */
+.suggestions-dropdown .suggestion-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 9px 16px !important;
+  cursor: pointer !important;
+  gap: 12px !important;
+  transition: background-color 0.12s ease !important;
+}
+
+.suggestions-dropdown .suggestion-row:hover,
+.suggestions-dropdown .suggestion-row-active {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.suggestions-dropdown .history-row {
+  background: rgba(157, 78, 221, 0.04) !important;
+}
+
+.suggestions-dropdown .history-row:hover,
+.suggestions-dropdown .history-row.suggestion-row-active {
+  background: rgba(157, 78, 221, 0.15) !important;
+}
+
+/* Left side: icon + text */
+.suggestions-dropdown .suggestion-content {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 14px !important;
+  min-width: 0 !important;
+  flex: 1 !important;
+}
+
+.suggestions-dropdown .item-icon {
+  flex-shrink: 0 !important;
+}
+
+.suggestions-dropdown .icon-history {
+  color: #c084fc !important;
+}
+
+.suggestions-dropdown .icon-search {
+  color: var(--text-muted) !important;
+}
+
+.suggestions-dropdown .suggestion-query-text {
+  font-size: 0.9rem !important;
+  color: #f1f5f9 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-weight: 400 !important;
+}
+
+.suggestions-dropdown .text-history-highlight {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Right side: delete button */
+.suggestions-dropdown .remove-history-item-btn {
+  color: var(--text-muted) !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.suggestions-dropdown .remove-history-item-btn:hover {
+  color: #ffffff !important;
+  background: rgba(255, 0, 51, 0.25) !important;
+}

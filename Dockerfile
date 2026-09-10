@@ -1,6 +1,6 @@
 FROM node:22-alpine
 
-# yt-dlp (search/stream/download) + ffmpeg (mp3 convert via -x --audio-format)
+# Default binaries (override at runtime with YTDLP_PATH / FFMPEG_PATH)
 RUN apk add --no-cache \
     ffmpeg \
     python3 \
@@ -16,6 +16,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+ENV YTDLP_PATH=yt-dlp
+ENV FFMPEG_PATH=ffmpeg
 
 EXPOSE 3000
 

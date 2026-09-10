@@ -1,5 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { getYtDlpBin } from "@/lib/binaries";
 
 const execFileAsync = promisify(execFile);
 
@@ -124,7 +125,7 @@ export async function searchVideos(query: string, limit = 16, startIndex = 1): P
     ];
 
     try {
-      const { stdout } = await execFileAsync("yt-dlp", args, {
+      const { stdout } = await execFileAsync(getYtDlpBin(), args, {
         maxBuffer: 25 * 1024 * 1024,
         timeout: 20000,
       });
@@ -182,7 +183,7 @@ export async function getAudioStreamDetails(videoIdOrUrl: string): Promise<Audio
     ];
 
     try {
-      const { stdout } = await execFileAsync("yt-dlp", args, {
+      const { stdout } = await execFileAsync(getYtDlpBin(), args, {
         maxBuffer: 30 * 1024 * 1024,
         timeout: 25000,
       });
@@ -253,7 +254,7 @@ export async function getVideoDirectUrl(
     ];
 
     try {
-      const { stdout } = await execFileAsync("yt-dlp", args, {
+      const { stdout } = await execFileAsync(getYtDlpBin(), args, {
         maxBuffer: 30 * 1024 * 1024,
         timeout: 30000,
       });

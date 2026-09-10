@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn, type ChildProcess } from "child_process";
 import { Readable } from "stream";
 import { getVideoDirectUrl } from "@/lib/ytdlp";
+import { getFfmpegBin, getYtDlpBin } from "@/lib/binaries";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -73,7 +74,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const ytdlp = spawn(
-      "yt-dlp",
+      getYtDlpBin(),
       [
         "--no-update",
         "--extractor-args",
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
     );
 
     const ffmpeg = spawn(
-      "ffmpeg",
+      getFfmpegBin(),
       [
         "-hide_banner",
         "-loglevel",

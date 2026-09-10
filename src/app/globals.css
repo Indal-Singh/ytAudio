@@ -41,6 +41,13 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+@media (max-width: 768px) {
+  :root {
+    --header-height: 56px;
+    --player-height: 72px;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;

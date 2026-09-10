@@ -343,7 +343,7 @@ export function PlayerBar() {
 
         {/* Right Section: Video Switcher, Download, Speed, Visualizer, Volume, Queue */}
         <div className="player-actions-section">
-          {/* Switch to Video Button */}
+          {/* Switch to Video Button — hidden on narrow mobile (iframe steals audio focus) */}
           <button
             className="video-mode-btn"
             onClick={() => {
@@ -792,31 +792,58 @@ export function PlayerBar() {
 
         @media (max-width: 768px) {
           .player-content {
-            padding: 0 12px;
-            gap: 8px;
+            padding: 0 10px;
+            gap: 6px;
+            align-items: center;
           }
 
           .track-info-section {
             min-width: 0;
-            max-width: 160px;
+            flex: 1 1 auto;
+            max-width: none;
             gap: 10px;
           }
 
+          .track-meta {
+            min-width: 0;
+          }
+
+          .track-title {
+            font-size: 0.88rem;
+          }
+
+          .track-uploader {
+            font-size: 0.72rem;
+          }
+
           .mini-thumbnail-box {
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
           }
 
           .yt-link-btn {
             display: none;
           }
 
+          .controls-section {
+            flex: 0 0 auto;
+            gap: 4px;
+          }
+
           .controls-row {
-            gap: 6px;
+            gap: 2px;
           }
 
           .ctrl-btn {
-            padding: 4px;
+            padding: 6px;
+            min-width: 36px;
+            min-height: 36px;
+          }
+
+          .play-main-btn {
+            width: 46px;
+            height: 46px;
           }
 
           .volume-group {
@@ -829,21 +856,28 @@ export function PlayerBar() {
 
           .player-actions-section {
             min-width: auto;
-            gap: 6px;
+            gap: 4px;
+            flex: 0 0 auto;
           }
 
-          .video-mode-label {
+          .video-mode-btn {
             display: none;
           }
-          .video-mode-btn {
+
+          .time-display {
+            display: none;
+          }
+
+          .action-btn {
             padding: 8px;
-            border-radius: 50%;
+            min-width: 40px;
+            min-height: 40px;
           }
         }
 
         @media (max-width: 520px) {
           .track-info-section {
-            max-width: 130px;
+            max-width: 42vw;
           }
 
           /* Hide non-essential buttons on narrow mobile screens */
@@ -854,18 +888,14 @@ export function PlayerBar() {
           }
 
           .play-main-btn {
-            width: 40px;
-            height: 40px;
-          }
-
-          .time-display {
-            font-size: 0.68rem;
+            width: 44px;
+            height: 44px;
           }
         }
 
         @media (max-width: 380px) {
           .track-info-section {
-            max-width: 105px;
+            max-width: 36vw;
           }
           .ctrl-btn:nth-child(2), /* -10s */
           .ctrl-btn:nth-child(6)  /* +10s */ {

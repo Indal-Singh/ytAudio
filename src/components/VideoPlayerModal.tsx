@@ -140,6 +140,30 @@ export function VideoPlayerModal({
   // Close modal and sync audio playback seamlessly
   const handleClose = useCallback(
     (autoPlayAudio: boolean = true) => {
+      // Release YouTube audio focus before resuming our <audio> (critical on mobile)
+      if (iframeRef.current?.contentWindow) {
+        try {
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "pauseVideo",
+              args: [],
+            }),
+            "*"
+          );
+          iframeRef.current.contentWindow.postMessage(
+            JSON.stringify({
+              event: "command",
+              func: "stopVideo",
+              args: [],
+            }),
+            "*"
+          );
+        } catch {
+          // Ignore
+        }
+      }
+
       let finalTime = latestVideoTimeRef.current;
 
       // If YouTube postMessage didn't update yet, calculate from open duration

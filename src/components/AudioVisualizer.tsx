@@ -410,25 +410,48 @@ export function AudioVisualizer() {
           }
           .visualizer-container {
             max-width: 100%;
-            height: 100vh;
+            height: 100%;
+            height: 100dvh;
             border-radius: 0;
             border: none;
           }
           .visualizer-header {
-            padding: 14px 16px;
+            padding: 12px 14px;
+            flex-wrap: wrap;
+            gap: 10px;
           }
           .track-hero-info {
-            max-width: 45%;
+            max-width: 100%;
+            flex: 1 1 auto;
+            min-width: 0;
           }
           .hero-title {
-            font-size: 0.92rem;
+            font-size: 0.95rem;
+            white-space: normal;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+          }
+          .header-actions {
+            width: 100%;
+            justify-content: space-between;
+            gap: 8px;
+          }
+          .mode-toggle-group {
+            flex: 1;
+          }
+          .mode-btn {
+            flex: 1;
+            padding: 8px 6px;
+            font-size: 0.72rem;
           }
           .center-artwork-wrapper {
-            width: 105px;
-            height: 105px;
+            width: 120px;
+            height: 120px;
           }
           .visualizer-footer {
             padding: 10px 16px;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
           }
           .footer-tip {
             display: none;

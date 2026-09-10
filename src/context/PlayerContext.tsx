@@ -12,6 +12,15 @@ import React, {
 } from "react";
 import { songFingerprint } from "@/lib/related";
 
+/** Mobile browsers need playsInline + no Web Audio hijack for continuous playback. */
+function isMobileClient(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent))
+  );
+}
+
 export interface Track {
   id: string;
   title: string;
@@ -294,6 +303,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playNextRef = useRef<() => void>(() => {});
   const lastSaveTimeRef = useRef<number>(0);
   const autoQueueFetchingRef = useRef<string | null>(null); // tracks which videoId we're fetching for
+  /** Song ended before related tracks arrived — play next as soon as queue grows. */
+  const pendingAutoNextRef = useRef<boolean>(false);
   const currentTimeRef = useRef<number>(0);
   const timeListenersRef = useRef<Set<(t: number) => void>>(new Set());
   const prefetchedIdsRef = useRef<Set<string>>(new Set());
@@ -363,8 +374,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
-  // Initialize Web Audio API node on user interaction
+  // Initialize Web Audio API node on user interaction (desktop only — mobile routes silence through suspended contexts)
   const initWebAudio = useCallback(() => {
+    if (isMobileClient()) return;
     if (audioContextRef.current || !audioRef.current) return;
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -387,11 +399,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Setup audio element listeners
+  // Setup audio element listeners — keep element in DOM for iOS/Android background play
   useEffect(() => {
-    const audio = new Audio();
+    const audio = document.createElement("audio");
     audio.preload = "auto";
+    (audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+    audio.setAttribute("playsinline", "");
+    audio.setAttribute("webkit-playsinline", "");
+    audio.setAttribute("x-webkit-airplay", "allow");
+    audio.crossOrigin = "anonymous";
+    audio.style.display = "none";
+    document.body.appendChild(audio);
     audioRef.current = audio;
+
+    // First gesture unlocks future play() / AudioContext resume on mobile
+    const unlock = () => {
+      if (audioContextRef.current?.state === "suspended") {
+        void audioContextRef.current.resume();
+      }
+      document.removeEventListener("touchstart", unlock);
+      document.removeEventListener("click", unlock);
+    };
+    document.addEventListener("touchstart", unlock, { once: true, passive: true });
+    document.addEventListener("click", unlock, { once: true });
 
     const handleTimeUpdate = () => {
       const t = audio.currentTime;
@@ -438,7 +468,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
 
     const handleEnded = () => {
-      setIsPlaying(false);
       // Clean up session if finished
       try {
         localStorage.removeItem("yt_audio_last_session");
@@ -451,10 +480,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (audioRef.current) {
           audioRef.current.currentTime = 0;
           notifyTime(0);
-          audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+          void audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
         }
-      } else if (isAutoplayRef.current) {
+        return;
+      }
+
+      if (!isAutoplayRef.current) {
+        setIsPlaying(false);
+        return;
+      }
+
+      const list = queueRef.current;
+      const idx = queueIndexRef.current;
+      const hasNext = idx >= 0 && idx + 1 < list.length;
+
+      if (hasNext || (isShufflingRef.current && list.length > 1)) {
+        // Call synchronously from `ended` so mobile browsers allow the next play()
         playNextRef.current();
+      } else {
+        // Related fetch may still be in flight — keep waiting for queue growth
+        pendingAutoNextRef.current = true;
+        setIsPlaying(false);
+        setIsLoading(true);
       }
     };
 
@@ -484,6 +531,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener("playing", handlePlaying);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
+      document.removeEventListener("touchstart", unlock);
+      document.removeEventListener("click", unlock);
+      audio.removeAttribute("src");
+      audio.load();
+      if (audio.parentNode) audio.parentNode.removeChild(audio);
+      if (audioRef.current === audio) audioRef.current = null;
     };
   }, [saveSessionToStorage, notifyTime, prefetchTrackStream]);
 
@@ -491,6 +544,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (track: Track, startTime?: number) => {
       setError(null);
       setIsLoading(true);
+      pendingAutoNextRef.current = false;
 
       try {
         // Play immediately via proxy?id= — one yt-dlp extract (shared with any prefetch
@@ -500,56 +554,64 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const startAt =
           typeof startTime === "number" ? Math.max(0, startTime) : track.lastPosition || 0;
 
-        // Playlist behavior: keep tracks in the list; only move the cursor
-        setQueue((prev) => {
-          const existingIdx = prev.findIndex((t) => t.id === enriched.id);
-          if (existingIdx >= 0) {
-            queueIndexRef.current = existingIdx;
-            setQueueIndex(existingIdx);
-            return prev;
-          }
-          if (prev.length === 0) {
-            queueIndexRef.current = 0;
-            setQueueIndex(0);
-            return [enriched];
-          }
-          // New track from feed/search → insert after current and play it
-          const insertAt = Math.min(Math.max(queueIndexRef.current, -1) + 1, prev.length);
-          const next = [...prev];
+        // Update playlist cursor synchronously (don't wait for React setState flush)
+        const prevQueue = queueRef.current;
+        const existingIdx = prevQueue.findIndex((t) => t.id === enriched.id);
+        if (existingIdx >= 0) {
+          queueIndexRef.current = existingIdx;
+          setQueueIndex(existingIdx);
+        } else if (prevQueue.length === 0) {
+          queueIndexRef.current = 0;
+          setQueueIndex(0);
+          queueRef.current = [enriched];
+          setQueue([enriched]);
+        } else {
+          const insertAt = Math.min(Math.max(queueIndexRef.current, -1) + 1, prevQueue.length);
+          const next = [...prevQueue];
           next.splice(insertAt, 0, enriched);
           queueIndexRef.current = insertAt;
           setQueueIndex(insertAt);
-          return next;
-        });
+          queueRef.current = next;
+          setQueue(next);
+        }
 
+        currentTrackRef.current = enriched;
         setCurrentTrack(enriched);
         setDuration(enriched.duration || 0);
         notifyTime(startAt);
 
-        if (audioRef.current) {
+        const audio = audioRef.current;
+        if (audio) {
           const warmUrl =
             enriched.audioUrl || prefetchedUrlsRef.current.get(enriched.id);
           const proxyAudioSrc = warmUrl
             ? `/api/proxy?id=${encodeURIComponent(enriched.id)}&url=${encodeURIComponent(warmUrl)}`
             : `/api/proxy?id=${encodeURIComponent(enriched.id)}`;
-          audioRef.current.src = proxyAudioSrc;
-          audioRef.current.playbackRate = playbackRate;
-          audioRef.current.volume = isMuted ? 0 : volume;
+
+          // Start media ASAP — critical for mobile continued play after `ended`
+          audio.src = proxyAudioSrc;
+          audio.playbackRate = playbackRate;
+          audio.volume = isMuted ? 0 : volume;
 
           if (startAt > 0) {
-            audioRef.current.currentTime = startAt;
+            const seekOnce = () => {
+              try {
+                audio.currentTime = startAt;
+              } catch {
+                // Ignore seek until buffered
+              }
+            };
+            audio.addEventListener("loadedmetadata", seekOnce, { once: true });
           }
 
-          audioRef.current.load();
-
           try {
-            if (startAt > 0) {
-              audioRef.current.currentTime = startAt;
-            }
-            await audioRef.current.play();
-            initWebAudio();
-            if (audioContextRef.current && audioContextRef.current.state === "suspended") {
-              audioContextRef.current.resume();
+            // Do not call audio.load() here — it can break the mobile play() chain
+            await audio.play();
+            if (!isMobileClient()) {
+              initWebAudio();
+              if (audioContextRef.current?.state === "suspended") {
+                void audioContextRef.current.resume();
+              }
             }
           } catch (playErr) {
             console.warn("Autoplay was prevented or postponed:", playErr);
@@ -633,17 +695,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (autoPlay) {
-        initWebAudio();
-        if (
-          audioContextRef.current &&
-          audioContextRef.current.state === "suspended"
-        ) {
-          audioContextRef.current.resume();
+        if (!isMobileClient()) {
+          initWebAudio();
+          if (audioContextRef.current?.state === "suspended") {
+            void audioContextRef.current.resume();
+          }
         }
-        audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch((e) => console.warn("Autoplay sync error:", e));
+        // Closing video modal is a user gesture — play() should succeed on mobile
+        const attempt = () =>
+          audioRef.current
+            ?.play()
+            .then(() => setIsPlaying(true))
+            .catch((e) => console.warn("Autoplay sync error:", e));
+
+        attempt();
+        // iOS sometimes needs a second tick after iframe releases audio focus
+        if (isMobileClient()) {
+          window.setTimeout(attempt, 120);
+        }
       }
     },
     [currentTrack, initWebAudio, notifyTime]
@@ -803,6 +872,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTrack?.id, isAutoplay, queue.length, queueIndex, fetchRelatedSongs]);
 
+  // If a track ended while related was still loading, start next when queue fills
+  useEffect(() => {
+    if (!pendingAutoNextRef.current || !isAutoplay) return;
+    const next = queueRef.current[queueIndexRef.current + 1];
+    if (!next) return;
+    pendingAutoNextRef.current = false;
+    void playTrack(next);
+  }, [queue.length, queueIndex, isAutoplay, playTrack]);
+
   const playNext = useCallback(() => {
     const list = queueRef.current;
     const idx = queueIndexRef.current;
@@ -829,7 +907,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Restart playlist from the beginning
       playTrack(list[0]);
     } else {
+      pendingAutoNextRef.current = true;
       setIsPlaying(false);
+      setIsLoading(true);
     }
   }, [playTrack, seek]);
 

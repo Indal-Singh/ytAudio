@@ -79,7 +79,7 @@ export function AudioCard({ video }: AudioCardProps) {
           alt={video.title}
           className="thumbnail-img"
           fill
-          sizes="(max-width: 540px) 100vw, (max-width: 900px) 50vw, 280px"
+          sizes="(max-width: 540px) 92px, (max-width: 900px) 50vw, 280px"
           onError={() => setImgError(true)}
         />
 
@@ -435,6 +435,63 @@ export function AudioCard({ video }: AudioCardProps) {
           }
           .card-title {
             font-size: 0.9rem;
+          }
+        }
+
+        @media (max-width: 540px) {
+          .audio-card {
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 6px;
+            border-radius: var(--radius-md);
+          }
+          .audio-card:hover {
+            transform: none;
+          }
+          .thumbnail-wrapper {
+            width: 92px;
+            min-width: 92px;
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+          }
+          .audio-badge {
+            display: none;
+          }
+          .duration-pill {
+            font-size: 0.65rem;
+            padding: 1px 5px;
+            bottom: 4px;
+            right: 4px;
+          }
+          .card-details {
+            flex: 1;
+            min-width: 0;
+            gap: 4px;
+          }
+          .channel-avatar {
+            display: none;
+          }
+          .card-title {
+            font-size: 0.92rem;
+            -webkit-line-clamp: 2;
+          }
+          .card-uploader,
+          .card-meta {
+            font-size: 0.75rem;
+          }
+          .card-actions-row {
+            margin-top: 4px;
+            gap: 6px;
+          }
+          .card-action-btn {
+            padding: 8px;
+            min-width: 36px;
+            min-height: 36px;
+          }
+          .overlay .play-circle {
+            width: 40px;
+            height: 40px;
           }
         }
       `}</style>

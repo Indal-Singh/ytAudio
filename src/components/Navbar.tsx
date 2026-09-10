@@ -877,8 +877,8 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
 
         @media (max-width: 768px) {
           .navbar-container {
-            padding: 0 12px;
-            gap: 8px;
+            padding: 0 10px;
+            gap: 6px;
           }
 
           .desktop-search-outer {
@@ -887,6 +887,22 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
 
           .mobile-search-trigger {
             display: flex;
+            min-width: 40px;
+            min-height: 40px;
+          }
+
+          .mobile-search-bar {
+            padding: 8px 10px;
+            padding-top: calc(8px + env(safe-area-inset-top, 0px));
+          }
+
+          .mobile-search-form {
+            padding: 4px 8px 4px 14px;
+            min-height: 44px;
+          }
+
+          .mobile-search-input {
+            font-size: 16px; /* prevents iOS zoom on focus */
           }
 
           .btn-label {
@@ -896,13 +912,13 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
           .action-pill-btn {
             padding: 8px;
             border-radius: 50%;
-            width: 38px;
-            height: 38px;
+            width: 40px;
+            height: 40px;
             justify-content: center;
           }
 
           .brand-title {
-            font-size: 1.1rem;
+            font-size: 1.15rem;
           }
           .brand-badge {
             display: none;

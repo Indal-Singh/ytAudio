@@ -1054,10 +1054,14 @@ export default function Home() {
         @media (max-width: 540px) {
           .feed-container {
             padding: 10px;
+            padding-bottom: calc(var(--player-height) + 28px);
           }
           .video-grid {
             grid-template-columns: 1fr;
-            gap: 16px;
+            gap: 4px;
+          }
+          .for-you-grid {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

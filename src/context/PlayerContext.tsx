@@ -129,6 +129,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueIndex, setQueueIndex] = useState<number>(-1);
   const [history, setHistory] = useState<Track[]>([]);
+  const historyRef = useRef<Track[]>(history);
+  historyRef.current = history;
   const [lastSession, setLastSession] = useState<LastSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFindingRelated, setIsFindingRelated] = useState<boolean>(false);
@@ -214,7 +216,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   };
 
   // Save last playback session (track, current position, duration, timestamp)
-  const saveSessionToStorage = useCallback((track: Track, position: number, dur: number) => {
+  // Periodic saves write localStorage only — avoid React re-renders every few seconds.
+  const saveSessionToStorage = useCallback((track: Track, position: number, dur: number, syncReact = false) => {
     if (!track || position < 1) return;
     try {
       const sessionData: LastSessionState = {
@@ -223,17 +226,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         duration: dur,
         timestamp: Date.now(),
       };
-      setLastSession(sessionData);
       localStorage.setItem("yt_audio_last_session", JSON.stringify(sessionData));
 
-      // Also update this track's lastPosition in history
-      setHistory((prev) => {
-        const updated = prev.map((t) =>
-          t.id === track.id ? { ...t, lastPosition: position, playedAt: Date.now() } : t
-        );
-        saveHistoryToStorage(updated);
-        return updated;
-      });
+      // Patch history positions in storage without forcing a full UI re-render
+      try {
+        const raw = localStorage.getItem("yt_audio_played_history");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const updated = parsed.map((t: Track) =>
+              t.id === track.id ? { ...t, lastPosition: position, playedAt: Date.now() } : t
+            );
+            localStorage.setItem("yt_audio_played_history", JSON.stringify(updated));
+            historyRef.current = updated;
+          }
+        }
+      } catch {
+        // Ignore history patch errors
+      }
+
+      if (syncReact) {
+        setLastSession(sessionData);
+        setHistory((prev) => {
+          const updated = prev.map((t) =>
+            t.id === track.id ? { ...t, lastPosition: position, playedAt: Date.now() } : t
+          );
+          return updated;
+        });
+      }
     } catch {
       // Ignore
     }
@@ -258,9 +278,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const queueIndexRef = useRef<number>(queueIndex);
   queueIndexRef.current = queueIndex;
-
-  const historyRef = useRef<Track[]>(history);
-  historyRef.current = history;
 
   const currentTrackRef = useRef<Track | null>(currentTrack);
   currentTrackRef.current = currentTrack;
@@ -406,7 +423,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const handlePause = () => {
       setIsPlaying(false);
       if (currentTrackRef.current && audio.currentTime > 1) {
-        saveSessionToStorage(currentTrackRef.current, Math.floor(audio.currentTime), audio.duration || 0);
+        saveSessionToStorage(
+          currentTrackRef.current,
+          Math.floor(audio.currentTime),
+          audio.duration || 0,
+          true
+        );
       }
     };
     const handleWaiting = () => setIsLoading(true);
@@ -549,7 +571,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         });
 
         // Save last session
-        saveSessionToStorage(trackWithMeta, startAt, enriched.duration || 0);
+        saveSessionToStorage(trackWithMeta, startAt, enriched.duration || 0, true);
 
         // Warm the next playlist item
         const nextTrack = queueRef.current[queueIndexRef.current + 1];
@@ -773,12 +795,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   // Auto-queue: fill related only when there are no upcoming playlist tracks
   useEffect(() => {
-    if (!currentTrack || !isAutoplay) return;
+    const track = currentTrackRef.current;
+    if (!track?.id || !isAutoplay) return;
     const upcoming = Math.max(0, queue.length - queueIndex - 1);
     if (queue.length === 0 || upcoming === 0) {
-      fetchRelatedSongs(currentTrack);
+      fetchRelatedSongs(track);
     }
-  }, [currentTrack, isAutoplay, queue.length, queueIndex, fetchRelatedSongs]);
+  }, [currentTrack?.id, isAutoplay, queue.length, queueIndex, fetchRelatedSongs]);
 
   const playNext = useCallback(() => {
     const list = queueRef.current;
@@ -979,11 +1002,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Prefetch next playlist item whenever cursor / queue changes
+  // Prefetch next playlist item when the upcoming track id changes
+  const nextTrackId = queue[queueIndex + 1]?.id;
   useEffect(() => {
-    if (!currentTrack) return;
-    prefetchTrackStream(queue[queueIndex + 1]);
-  }, [currentTrack, queue, queueIndex, prefetchTrackStream]);
+    if (!currentTrack?.id) return;
+    const next = queueRef.current[queueIndexRef.current + 1];
+    prefetchTrackStream(next);
+  }, [currentTrack?.id, nextTrackId, prefetchTrackStream]);
 
   // Media Session API — lock screen / headset controls
   useEffect(() => {

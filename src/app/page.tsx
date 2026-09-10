@@ -73,12 +73,21 @@ export default function Home() {
     openDownloadModal,
   } = usePlayer();
 
+  const historyRef = React.useRef(history);
+  historyRef.current = history;
+
   const isForYou = currentQuery === FOR_YOU_QUERY;
   const showHomeRecs =
     !isForYou &&
     activeCategory === "trending music" &&
     history.length >= 2 &&
     recommended.length > 0;
+
+  // Stable key of recent listen IDs (ignores lastPosition ticks)
+  const historySeedKey = history
+    .slice(0, 8)
+    .map((t) => t.id)
+    .join(",");
 
   useEffect(() => {
     // Only collapse on mobile viewports (< 769px) by default
@@ -88,12 +97,13 @@ export default function Home() {
   }, []);
 
   const fetchRecommended = useCallback(async (force = false) => {
-    if (history.length < 2) {
+    const hist = historyRef.current;
+    if (hist.length < 2) {
       setRecommended([]);
       return;
     }
 
-    const seedKey = history
+    const seedKey = hist
       .slice(0, 8)
       .map((t) => t.id)
       .join(",");
@@ -113,7 +123,7 @@ export default function Home() {
         signal: controller.signal,
         body: JSON.stringify({
           limit: 16,
-          seeds: history.slice(0, 20).map((t) => ({
+          seeds: hist.slice(0, 20).map((t) => ({
             id: t.id,
             title: t.title,
             uploader: t.uploader,
@@ -133,7 +143,7 @@ export default function Home() {
         setLoadingRecommended(false);
       }
     }
-  }, [history]);
+  }, []);
 
   const fetchVideos = useCallback(async (searchQuery: string) => {
     if (searchQuery === FOR_YOU_QUERY) {
@@ -241,16 +251,18 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, loadMoreVideos]);
 
+  // Initial home feed — once only (do NOT re-run when callbacks/history change)
   useEffect(() => {
     fetchVideos("trending music");
-  }, [fetchVideos]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
+  }, []);
 
-  // Warm personalized recommendations whenever history becomes available
+  // Warm personalized recommendations when listen history IDs actually change
   useEffect(() => {
     if (history.length >= 2) {
       fetchRecommended(false);
     }
-  }, [history, fetchRecommended]);
+  }, [historySeedKey, history.length, fetchRecommended]);
 
   const handleSearch = (query: string) => {
     setCurrentQuery(query);

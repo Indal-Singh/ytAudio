@@ -42,6 +42,18 @@ export interface LastSessionState {
   timestamp: number;
 }
 
+export interface RewindPlaylist {
+  id: string;
+  seedId: string;
+  title: string;
+  seedTitle: string;
+  seedArtist: string;
+  thumbnail: string;
+  trackCount: number;
+  tracks: Track[];
+  playedAt: number;
+}
+
 interface PlayerContextType {
   currentTrack: Track | null;
   isPlaying: boolean;
@@ -59,6 +71,10 @@ interface PlayerContextType {
   /** Index of the currently playing track inside `queue` (-1 if none). */
   queueIndex: number;
   history: Track[];
+  rewindPlaylists: RewindPlaylist[];
+  restoreRewindPlaylist: (id: string, startIndex?: number) => Promise<void>;
+  removeRewindPlaylist: (id: string) => void;
+  clearRewindPlaylists: () => void;
   lastSession: LastSessionState | null;
   showVisualizer: boolean;
   showDirectModal: boolean;
@@ -68,7 +84,12 @@ interface PlayerContextType {
   downloadTrack: Track | null;
   error: string | null;
   analyser: AnalyserNode | null;
-  playTrack: (track: Track, startTime?: number) => Promise<void>;
+  playTrack: (
+    track: Track,
+    startTime?: number,
+    options?: { fromQueue?: boolean }
+  ) => Promise<void>;
+  playFromQueue: (index: number) => Promise<void>;
   resumeLastSession: () => Promise<void>;
   dismissLastSession: () => void;
   togglePlay: () => void;
@@ -100,6 +121,7 @@ interface PlayerContextType {
   openDownloadModal: (track?: Track) => void;
   playDirectUrl: (urlOrId: string) => Promise<void>;
   isFindingRelated: boolean;
+  loadMoreRelatedSongs: () => Promise<void>;
 }
 
 type PlaybackStatus = {
@@ -109,12 +131,18 @@ type PlaybackStatus = {
 };
 
 type PlayerActions = {
-  playTrack: (track: Track, startTime?: number) => Promise<void>;
+  playTrack: (
+    track: Track,
+    startTime?: number,
+    options?: { fromQueue?: boolean }
+  ) => Promise<void>;
+  playFromQueue: (index: number) => Promise<void>;
   togglePlay: () => void;
   addToQueue: (track: Track) => void;
   addToPlayNext: (track: Track) => void;
   openDownloadModal: (track?: Track) => void;
 };
+
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
 const PlaybackStatusContext = createContext<PlaybackStatus>({
@@ -140,12 +168,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useState<Track[]>([]);
   const historyRef = useRef<Track[]>(history);
   historyRef.current = history;
+  const [rewindPlaylists, setRewindPlaylists] = useState<RewindPlaylist[]>([]);
+  const rewindPlaylistsRef = useRef<RewindPlaylist[]>(rewindPlaylists);
+  rewindPlaylistsRef.current = rewindPlaylists;
+  const currentSeedTrackRef = useRef<Track | null>(null);
   const [lastSession, setLastSession] = useState<LastSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFindingRelated, setIsFindingRelated] = useState<boolean>(false);
   const [prefsHydrated, setPrefsHydrated] = useState(false);
 
-  // Load history, queue, lastSession, and playback prefs from localStorage on mount
+  // Load history, rewind playlists, queue, lastSession, and playback prefs from localStorage on mount
   useEffect(() => {
     try {
       const savedHistory = localStorage.getItem("yt_audio_played_history");
@@ -153,6 +185,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(savedHistory);
         if (Array.isArray(parsed)) {
           setHistory(parsed);
+        }
+      }
+
+      const savedRewind = localStorage.getItem("yt_audio_rewind_playlists");
+      if (savedRewind) {
+        const parsed = JSON.parse(savedRewind);
+        if (Array.isArray(parsed)) {
+          setRewindPlaylists(parsed);
         }
       }
 
@@ -540,40 +580,188 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [saveSessionToStorage, notifyTime, prefetchTrackStream]);
 
+  // Save or update playlist in Rewind Playlist history
+  const saveRewindPlaylist = useCallback((seedTrack: Track, tracks: Track[]) => {
+    if (!seedTrack?.id || !tracks || tracks.length === 0) return;
+    setRewindPlaylists((prev) => {
+      const existing = prev.find((p) => p.seedId === seedTrack.id);
+      const newEntry: RewindPlaylist = {
+        id: existing?.id || `rewind_${Date.now()}_${seedTrack.id}`,
+        seedId: seedTrack.id,
+        title: seedTrack.title,
+        seedTitle: seedTrack.title,
+        seedArtist: seedTrack.uploader || "YouTube",
+        thumbnail: seedTrack.thumbnail,
+        trackCount: tracks.length,
+        tracks: [...tracks],
+        playedAt: Date.now(),
+      };
+      const filtered = prev.filter((p) => p.seedId !== seedTrack.id);
+      const updated = [newEntry, ...filtered].slice(0, 30);
+      try {
+        localStorage.setItem("yt_audio_rewind_playlists", JSON.stringify(updated));
+      } catch {
+        // Ignore
+      }
+      return updated;
+    });
+  }, []);
+
+  // Fetch related/similar songs and add them to the queue
+  const fetchRelatedSongs = useCallback(async (track: Track, isReset = false, isAppendMore = false) => {
+    // Don't fetch if we're already fetching for this track (unless forced by reset or appendMore)
+    if (!isReset && !isAppendMore && autoQueueFetchingRef.current === track.id) return;
+    autoQueueFetchingRef.current = track.id;
+    setIsFindingRelated(true);
+
+    try {
+      const params = new URLSearchParams({
+        title: track.title || "",
+        artist: track.uploader || "",
+        currentId: track.id,
+        limit: "25",
+      });
+      const res = await fetch(`/api/related?${params.toString()}`);
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.results) && data.results.length > 0) {
+        setQueue((prevQueue) => {
+          // If this was from an outside reset, ensure user hasn't switched to another track
+          if (isReset && currentTrackRef.current?.id !== track.id) {
+            return prevQueue;
+          }
+
+          // When NOT a reset and NOT appendMore, only append if cursor is near end of playlist (<= 3 songs remaining)
+          if (!isReset && !isAppendMore) {
+            const cursor = queueIndexRef.current;
+            const upcomingCount =
+              prevQueue.length === 0 ? 0 : Math.max(0, prevQueue.length - cursor - 1);
+            if (upcomingCount > 3) return prevQueue;
+          }
+
+          const recentHistory = historyRef.current;
+
+          const existingIds = new Set([
+            ...prevQueue.map((t) => t.id),
+            track.id,
+            ...recentHistory.map((t) => t.id),
+          ]);
+
+          // Block alternate versions of songs already playing / recently played / queued
+          const existingFingerprints = new Set(
+            [
+              songFingerprint(track.title, track.uploader),
+              ...prevQueue.map((t) => songFingerprint(t.title, t.uploader)),
+              ...recentHistory.slice(0, 20).map((t) => songFingerprint(t.title, t.uploader)),
+            ].filter(Boolean)
+          );
+
+          const newTracks: Track[] = [];
+          for (const v of data.results as Array<{
+            id: string;
+            title: string;
+            uploader: string;
+            duration: number;
+            duration_string: string;
+            thumbnail: string;
+            url: string;
+          }>) {
+            if (existingIds.has(v.id)) continue;
+            const fp = songFingerprint(v.title, v.uploader);
+            if (fp && existingFingerprints.has(fp)) continue;
+            existingIds.add(v.id);
+            if (fp) existingFingerprints.add(fp);
+            newTracks.push({
+              id: v.id,
+              title: v.title,
+              uploader: v.uploader,
+              duration: v.duration,
+              duration_string: v.duration_string,
+              thumbnail: v.thumbnail,
+              url: v.url,
+            });
+          }
+
+          if (newTracks.length === 0) return prevQueue;
+
+          const updatedQueue = [...prevQueue, ...newTracks];
+          queueRef.current = updatedQueue;
+          const seed = currentSeedTrackRef.current || track;
+          saveRewindPlaylist(seed, updatedQueue);
+          return updatedQueue;
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to fetch related songs:", err);
+    } finally {
+      if (autoQueueFetchingRef.current === track.id) {
+        autoQueueFetchingRef.current = null;
+      }
+      setIsFindingRelated(false);
+    }
+  }, [saveRewindPlaylist]);
+
+  // Explicitly load more related songs (e.g., when scrolling to bottom of queue drawer)
+  const loadMoreRelatedSongs = useCallback(async () => {
+    const list = queueRef.current;
+    if (list.length === 0 || isFindingRelated) return;
+    // Use last track or current track as seed for finding next recommendations
+    const seedTrack = list[list.length - 1] || currentTrackRef.current;
+    if (!seedTrack) return;
+    await fetchRelatedSongs(seedTrack, false, true);
+  }, [fetchRelatedSongs, isFindingRelated]);
+
   const playTrack = useCallback(
-    async (track: Track, startTime?: number) => {
+    async (
+      track: Track,
+      startTime?: number,
+      options?: { fromQueue?: boolean }
+    ) => {
       setError(null);
       setIsLoading(true);
       pendingAutoNextRef.current = false;
 
+      const isFromQueue = options?.fromQueue ?? false;
+
       try {
-        // Play immediately via proxy?id= — one yt-dlp extract (shared with any prefetch
-        // via in-flight cache). Card/queue metadata is enough for the UI; no blocking
-        // /api/stream round-trip before audio starts.
         const enriched: Track = { ...track };
         const startAt =
           typeof startTime === "number" ? Math.max(0, startTime) : track.lastPosition || 0;
 
-        // Update playlist cursor synchronously (don't wait for React setState flush)
-        const prevQueue = queueRef.current;
-        const existingIdx = prevQueue.findIndex((t) => t.id === enriched.id);
-        if (existingIdx >= 0) {
-          queueIndexRef.current = existingIdx;
-          setQueueIndex(existingIdx);
-        } else if (prevQueue.length === 0) {
+        if (isFromQueue) {
+          // PLAYING FROM PLAYLIST:
+          // Playlist & related songs do NOT reset. Cursor simply moves to the selected track.
+          const prevQueue = queueRef.current;
+          const existingIdx = prevQueue.findIndex((t) => t.id === enriched.id);
+          if (existingIdx >= 0) {
+            queueIndexRef.current = existingIdx;
+            setQueueIndex(existingIdx);
+          } else {
+            const next = [...prevQueue, enriched];
+            const newIdx = next.length - 1;
+            queueIndexRef.current = newIdx;
+            setQueueIndex(newIdx);
+            queueRef.current = next;
+            setQueue(next);
+            if (currentTrackRef.current) {
+              saveRewindPlaylist(currentTrackRef.current, next);
+            }
+          }
+        } else {
+          // PLAYING FROM OUTSIDE (search results, home feed, recommended cards, etc.):
+          // Reset playlist with this newly selected song as track 0
+          currentSeedTrackRef.current = enriched;
           queueIndexRef.current = 0;
           setQueueIndex(0);
           queueRef.current = [enriched];
           setQueue([enriched]);
-        } else {
-          const insertAt = Math.min(Math.max(queueIndexRef.current, -1) + 1, prevQueue.length);
-          const next = [...prevQueue];
-          next.splice(insertAt, 0, enriched);
-          queueIndexRef.current = insertAt;
-          setQueueIndex(insertAt);
-          queueRef.current = next;
-          setQueue(next);
+          saveRewindPlaylist(enriched, [enriched]);
+
+          // Immediately fetch fresh recommendations for this new song
+          autoQueueFetchingRef.current = null;
+          void fetchRelatedSongs(enriched, true);
         }
+
 
         currentTrackRef.current = enriched;
         setCurrentTrack(enriched);
@@ -645,8 +833,63 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
       }
     },
-    [initWebAudio, playbackRate, isMuted, volume, saveSessionToStorage, notifyTime, prefetchTrackStream]
+    [initWebAudio, playbackRate, isMuted, volume, saveSessionToStorage, notifyTime, prefetchTrackStream, fetchRelatedSongs]
   );
+
+  const playFromQueue = useCallback(
+    async (index: number) => {
+      const list = queueRef.current;
+      if (index < 0 || index >= list.length) return;
+      const target = list[index];
+      await playTrack(target, 0, { fromQueue: true });
+    },
+    [playTrack]
+  );
+
+  const restoreRewindPlaylist = useCallback(
+    async (playlistId: string, startIndex: number = 0) => {
+      const pl = rewindPlaylistsRef.current.find((p) => p.id === playlistId);
+      if (!pl || pl.tracks.length === 0) return;
+      currentSeedTrackRef.current = pl.tracks[0] || null;
+      const targetTracks = [...pl.tracks];
+      const validIndex = Math.max(0, Math.min(startIndex, targetTracks.length - 1));
+      queueRef.current = targetTracks;
+      setQueue(targetTracks);
+      queueIndexRef.current = validIndex;
+      setQueueIndex(validIndex);
+      try {
+        localStorage.setItem("yt_audio_saved_queue", JSON.stringify(targetTracks));
+        localStorage.setItem("yt_audio_queue_index", String(validIndex));
+      } catch {
+        // Ignore
+      }
+      await playTrack(targetTracks[validIndex], 0, { fromQueue: true });
+    },
+    [playTrack]
+  );
+
+  const removeRewindPlaylist = useCallback((playlistId: string) => {
+    setRewindPlaylists((prev) => {
+      const updated = prev.filter((p) => p.id !== playlistId);
+      try {
+        localStorage.setItem("yt_audio_rewind_playlists", JSON.stringify(updated));
+      } catch {
+        // Ignore
+      }
+      return updated;
+    });
+  }, []);
+
+  const clearRewindPlaylists = useCallback(() => {
+    setRewindPlaylists([]);
+    try {
+      localStorage.removeItem("yt_audio_rewind_playlists");
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+
 
   const togglePlay = useCallback(() => {
     if (!audioRef.current || !currentTrack) return;
@@ -768,107 +1011,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsShuffling((prev) => !prev);
   }, []);
 
-  // Fetch related/similar songs and add them to the queue
-  const fetchRelatedSongs = useCallback(async (track: Track) => {
-    // Don't fetch if we're already fetching for this track
-    if (autoQueueFetchingRef.current === track.id) return;
-    autoQueueFetchingRef.current = track.id;
-    setIsFindingRelated(true);
-
-    try {
-      const params = new URLSearchParams({
-        title: track.title || "",
-        artist: track.uploader || "",
-        currentId: track.id,
-        limit: "8",
-      });
-      const res = await fetch(`/api/related?${params.toString()}`);
-      const data = await res.json();
-
-      if (data.success && Array.isArray(data.results) && data.results.length > 0) {
-        setQueue((prevQueue) => {
-          // Only append related when there are no upcoming tracks after the cursor
-          const cursor = queueIndexRef.current;
-          const upcomingCount = prevQueue.length === 0 ? 0 : Math.max(0, prevQueue.length - cursor - 1);
-          if (upcomingCount > 0) return prevQueue;
-
-          const recentHistory = historyRef.current;
-
-          const existingIds = new Set([
-            ...prevQueue.map((t) => t.id),
-            track.id,
-            ...recentHistory.map((t) => t.id),
-          ]);
-
-          // Block alternate versions of songs already playing / recently played / queued
-          const existingFingerprints = new Set(
-            [
-              songFingerprint(track.title, track.uploader),
-              ...prevQueue.map((t) => songFingerprint(t.title, t.uploader)),
-              ...recentHistory.slice(0, 20).map((t) => songFingerprint(t.title, t.uploader)),
-            ].filter(Boolean)
-          );
-
-          const newTracks: Track[] = [];
-          for (const v of data.results as Array<{
-            id: string;
-            title: string;
-            uploader: string;
-            duration: number;
-            duration_string: string;
-            thumbnail: string;
-            url: string;
-          }>) {
-            if (existingIds.has(v.id)) continue;
-            const fp = songFingerprint(v.title, v.uploader);
-            if (fp && existingFingerprints.has(fp)) continue;
-            existingIds.add(v.id);
-            if (fp) existingFingerprints.add(fp);
-            newTracks.push({
-              id: v.id,
-              title: v.title,
-              uploader: v.uploader,
-              duration: v.duration,
-              duration_string: v.duration_string,
-              thumbnail: v.thumbnail,
-              url: v.url,
-            });
-          }
-
-          if (newTracks.length === 0) return prevQueue;
-          // If playlist was empty, start cursor at -1 so first related becomes playable next
-          if (prevQueue.length === 0 && queueIndexRef.current < 0) {
-            // Keep index pointing at current playing track once it's in the list
-            const withCurrent = currentTrackRef.current
-              ? [currentTrackRef.current, ...newTracks.filter((t) => t.id !== currentTrackRef.current?.id)]
-              : newTracks;
-            if (currentTrackRef.current) {
-              queueIndexRef.current = 0;
-              setQueueIndex(0);
-            }
-            return withCurrent;
-          }
-          return [...prevQueue, ...newTracks];
-        });
-      }
-    } catch (err) {
-      console.warn("Failed to fetch related songs:", err);
-    } finally {
-      // Allow re-fetching for a different track
-      if (autoQueueFetchingRef.current === track.id) {
-        autoQueueFetchingRef.current = null;
-      }
-      setIsFindingRelated(false);
-    }
-  }, []);
-
-  // Auto-queue: fill related only when there are no upcoming playlist tracks
+  // Auto-queue: proactively fetch and append more related songs when playlist is nearing end (<= 3 upcoming songs)
   useEffect(() => {
-    const track = currentTrackRef.current;
-    if (!track?.id || !isAutoplay) return;
+    if (!isAutoplay) return;
     const upcoming = Math.max(0, queue.length - queueIndex - 1);
-    if (queue.length === 0 || upcoming === 0) {
-      fetchRelatedSongs(track);
+    if (queue.length === 0 || upcoming <= 3) {
+      // Pick seed track: prefer the last track in queue, or current playing track
+      const seedTrack = (queue.length > 0 ? queue[queue.length - 1] : null) || currentTrackRef.current;
+      if (seedTrack?.id) {
+        fetchRelatedSongs(seedTrack, false, upcoming > 0);
+      }
     }
   }, [currentTrack?.id, isAutoplay, queue.length, queueIndex, fetchRelatedSongs]);
 
@@ -878,7 +1030,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const next = queueRef.current[queueIndexRef.current + 1];
     if (!next) return;
     pendingAutoNextRef.current = false;
-    void playTrack(next);
+    void playTrack(next, 0, { fromQueue: true });
   }, [queue.length, queueIndex, isAutoplay, playTrack]);
 
   const playNext = useCallback(() => {
@@ -902,10 +1054,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
 
     if (nextIndex >= 0 && nextIndex < list.length) {
-      playTrack(list[nextIndex]);
+      playTrack(list[nextIndex], 0, { fromQueue: true });
     } else if (isLoopingRef.current) {
       // Restart playlist from the beginning
-      playTrack(list[0]);
+      playTrack(list[0], 0, { fromQueue: true });
     } else {
       pendingAutoNextRef.current = true;
       setIsPlaying(false);
@@ -923,11 +1075,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const list = queueRef.current;
     const idx = queueIndexRef.current;
     if (idx > 0 && list[idx - 1]) {
-      playTrack(list[idx - 1]);
+      playTrack(list[idx - 1], 0, { fromQueue: true });
     } else {
       seek(0);
     }
   }, [playTrack, seek]);
+
 
   const addToQueue = useCallback((track: Track) => {
     setQueue((prev) => {
@@ -1070,7 +1223,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const resumeLastSession = useCallback(async () => {
     if (!lastSession || !lastSession.track) return;
-    await playTrack(lastSession.track, lastSession.position);
+    await playTrack(lastSession.track, lastSession.position, { fromQueue: true });
   }, [lastSession, playTrack]);
 
   const dismissLastSession = useCallback(() => {
@@ -1225,12 +1378,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const actionsValue = useMemo<PlayerActions>(
     () => ({
       playTrack,
+      playFromQueue,
       togglePlay,
       addToQueue,
       addToPlayNext,
       openDownloadModal,
     }),
-    [playTrack, togglePlay, addToQueue, addToPlayNext, openDownloadModal]
+    [playTrack, playFromQueue, togglePlay, addToQueue, addToPlayNext, openDownloadModal]
   );
 
   const playbackStatus = useMemo<PlaybackStatus>(
@@ -1261,6 +1415,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             queue,
             queueIndex,
             history,
+            rewindPlaylists,
+            restoreRewindPlaylist,
+            removeRewindPlaylist,
+            clearRewindPlaylists,
             lastSession,
             showVisualizer,
             showDirectModal,
@@ -1271,6 +1429,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             error,
             analyser,
             playTrack,
+            playFromQueue,
+
             resumeLastSession,
             dismissLastSession,
             togglePlay,
@@ -1286,6 +1446,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             toggleShuffle,
             isAutoplay,
             toggleAutoplay,
+
             playNext,
             playPrev,
             addToQueue,
@@ -1302,6 +1463,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             openDownloadModal,
             playDirectUrl,
             isFindingRelated,
+            loadMoreRelatedSongs,
           }}
         >
           {children}

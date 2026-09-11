@@ -106,8 +106,15 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
     }
   }, []);
 
+  const isNavigatingRef = useRef(false);
+
   // Fetch live suggestions as user types
   useEffect(() => {
+    if (isNavigatingRef.current) {
+      isNavigatingRef.current = false;
+      return;
+    }
+
     const trimmed = searchInput.trim();
     if (!trimmed) {
       setLiveSuggestions([]);
@@ -184,6 +191,7 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
   const handleExecuteSearch = (query: string) => {
     const target = query.trim();
     if (!target) return;
+    setSearchInput(target);
     saveToHistory(target);
     onSearch(target);
     setIsFocused(false);
@@ -205,10 +213,24 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % allItems.length);
+      setSelectedIndex((prev) => {
+        const next = (prev + 1) % allItems.length;
+        if (allItems[next]) {
+          isNavigatingRef.current = true;
+          setSearchInput(allItems[next].text);
+        }
+        return next;
+      });
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev <= 0 ? allItems.length - 1 : prev - 1));
+      setSelectedIndex((prev) => {
+        const next = prev <= 0 ? allItems.length - 1 : prev - 1;
+        if (allItems[next]) {
+          isNavigatingRef.current = true;
+          setSearchInput(allItems[next].text);
+        }
+        return next;
+      });
     } else if (e.key === "Escape") {
       setIsFocused(false);
     }
@@ -250,9 +272,13 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
               className={`suggestion-row ${
                 isSelected ? "suggestion-row-active" : ""
               } ${item.isHistory ? "history-row" : ""}`}
-              onMouseDown={() => handleExecuteSearch(item.text)}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleExecuteSearch(item.text);
+              }}
               onMouseEnter={() => setSelectedIndex(idx)}
             >
+
               <div className="suggestion-content">
                 {item.isHistory ? (
                   <Clock size={16} className="item-icon icon-history" />

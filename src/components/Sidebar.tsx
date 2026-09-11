@@ -109,14 +109,15 @@ export function Sidebar({
               setShowQueueDrawer(true);
               if (onCloseMobile) onCloseMobile();
             }}
-            title="Play Queue & History"
+            title="Playlist & Rewind"
           >
             <div className="nav-icon-box">
               <History size={20} />
             </div>
-            <span className="nav-label-full">Queue & History</span>
-            <span className="nav-label-mini">Queue</span>
+            <span className="nav-label-full">Playlist & Rewind</span>
+            <span className="nav-label-mini">Rewind</span>
           </button>
+
         </div>
 
         {/* Footer Brand Info (Expanded mode only) */}

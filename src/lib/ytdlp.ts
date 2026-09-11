@@ -105,16 +105,18 @@ export function extractVideoId(input: string): string {
 
 export async function searchVideos(query: string, limit = 16, startIndex = 1): Promise<VideoItem[]> {
   const safeStart = Math.max(1, startIndex);
-  const safeLimit = Math.max(1, Math.min(limit, 30));
+  const safeLimit = Math.max(1, Math.min(limit, 50));
   const safeEnd = safeStart + safeLimit - 1;
-  // Don't over-fetch: related/small pages shouldn't force ytsearch50
-  const maxSearchCount = Math.min(50, Math.max(safeEnd + 8, safeLimit + 10));
+  // Don't over-fetch: related/small pages shouldn't force ytsearch60
+  const maxSearchCount = Math.min(60, Math.max(safeEnd + 8, safeLimit + 10));
 
   const cacheKey = `search:${query}:${safeStart}:${safeLimit}`;
 
   return withCacheInflight(cacheKey, async () => {
     const searchQuery = `ytsearch${maxSearchCount}:${query}`;
     const args = [
+      "--no-update",
+      "--no-warnings",
       "--flat-playlist",
       "--dump-json",
       "--default-search",
@@ -173,6 +175,8 @@ export async function getAudioStreamDetails(videoIdOrUrl: string): Promise<Audio
   return withCacheInflight(cacheKey, async () => {
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
     const args = [
+      "--no-update",
+      "--no-warnings",
       "--extractor-args",
       "youtube:player_client=android,web",
       "-f",
@@ -181,6 +185,7 @@ export async function getAudioStreamDetails(videoIdOrUrl: string): Promise<Audio
       "--no-playlist",
       targetUrl,
     ];
+
 
     try {
       const { stdout } = await execFileAsync(getYtDlpBin(), args, {

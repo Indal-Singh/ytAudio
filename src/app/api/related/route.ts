@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const title = searchParams.get("title") || "";
   const artist = searchParams.get("artist") || "";
   const currentId = searchParams.get("currentId") || "";
-  const limit = Math.min(parseInt(searchParams.get("limit") || "10", 10), 20);
+  const limit = Math.min(parseInt(searchParams.get("limit") || "25", 10), 50);
 
   if (!title && !artist) {
     return NextResponse.json(

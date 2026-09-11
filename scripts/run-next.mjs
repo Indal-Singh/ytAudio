@@ -27,6 +27,11 @@ function loadEnvFiles() {
   }
 }
 
+if (process.platform === "win32") {
+  if (process.env.YTDLP_PATH?.startsWith("/")) delete process.env.YTDLP_PATH;
+  if (process.env.FFMPEG_PATH?.startsWith("/")) delete process.env.FFMPEG_PATH;
+}
+
 loadEnvFiles();
 
 const mode = process.argv[2] === "start" ? "start" : "dev";

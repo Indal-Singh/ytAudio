@@ -1,30 +1,48 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, Trash2, Play, ListMusic, History as HistoryIcon, GripVertical } from "lucide-react";
+import { X, Trash2, Play, ListMusic, RotateCcw, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
+
+function formatRelativeTime(timestamp: number): string {
+  if (!timestamp) return "";
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  if (diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  const days = Math.floor(diff / 86400);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
 
 export function QueueDrawer() {
   const {
     queue,
     queueIndex,
-    history,
     currentTrack,
     showQueueDrawer,
     setShowQueueDrawer,
     isAutoplay,
     toggleAutoplay,
     playTrack,
+    playFromQueue,
     removeFromQueue,
     moveInQueue,
     clearQueue,
-    clearHistory,
     isFindingRelated,
+    loadMoreRelatedSongs,
+    rewindPlaylists,
+    restoreRewindPlaylist,
+    removeRewindPlaylist,
+    clearRewindPlaylists,
   } = usePlayer();
 
-  const [activeTab, setActiveTab] = useState<"queue" | "history">("queue");
+  const [activeTab, setActiveTab] = useState<"queue" | "rewind">("queue");
+  const [expandedPlaylistId, setExpandedPlaylistId] = useState<string | null>(null);
   const upcomingCount = Math.max(0, queue.length - queueIndex - 1);
   const playedCount = Math.max(0, queueIndex);
+
 
   // ── Drag reorder state ──
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -137,12 +155,13 @@ export function QueueDrawer() {
               <span>Playlist ({queue.length})</span>
             </button>
             <button
-              className={`tab-btn ${activeTab === "history" ? "tab-active" : ""}`}
-              onClick={() => setActiveTab("history")}
+              className={`tab-btn ${activeTab === "rewind" ? "tab-active" : ""}`}
+              onClick={() => setActiveTab("rewind")}
             >
-              <HistoryIcon size={16} />
-              <span>History ({history.length})</span>
+              <RotateCcw size={14} />
+              <span>Rewind Playlist ({rewindPlaylists.length})</span>
             </button>
+
           </div>
           <button
             className="close-drawer-btn"
@@ -173,6 +192,14 @@ export function QueueDrawer() {
         {/* Drawer Body */}
         <div
           className="drawer-body"
+          onScroll={(e) => {
+            if (activeTab !== "queue") return;
+            const target = e.currentTarget;
+            // When scrolled within 180px of bottom, fetch more recommendations
+            if (target.scrollHeight - target.scrollTop - target.clientHeight < 180) {
+              void loadMoreRelatedSongs();
+            }
+          }}
           onMouseMove={(e) => { handleDragMove(e.clientY); handleSwipeMove(e.clientX); }}
           onMouseUp={() => { handleDragEnd(); }}
           onMouseLeave={() => { handleDragEnd(); if (isSwiping.current && swipeItemRef.current) { swipeItemRef.current.style.transform = "translateX(0)"; swipeItemRef.current.style.opacity = "1"; isSwiping.current = false; } }}
@@ -253,11 +280,12 @@ export function QueueDrawer() {
                       <img
                         src={track.thumbnail}
                         alt={track.title}
-                        className="item-thumb"
+                        className="item-thumb cursor-pointer"
                         draggable={false}
+                        onClick={() => playFromQueue(idx)}
                       />
 
-                      <div className="item-info">
+                      <div className="item-info cursor-pointer" onClick={() => playFromQueue(idx)}>
                         <span className="item-title">
                           {isCurrent ? "▶ " : ""}
                           {track.title}
@@ -269,10 +297,11 @@ export function QueueDrawer() {
                         </span>
                       </div>
 
+
                       <div className="item-actions">
                         <button
                           className="item-play-btn"
-                          onClick={(e) => { e.stopPropagation(); playTrack(track); }}
+                          onClick={(e) => { e.stopPropagation(); playFromQueue(idx); }}
                           title={isCurrent ? "Playing now" : "Play this track"}
                         >
                           <Play size={14} color="#ffffff" style={{ marginLeft: "2px" }} />
@@ -288,79 +317,149 @@ export function QueueDrawer() {
                     </div>
                     );
                   })}
+                  {isFindingRelated && queue.length > 0 && (
+                    <div className="bottom-loading-wrap">
+                      <div className="bottom-loading-dot" />
+                      <span>Loading more songs…</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>
           ) : (
             <>
-              {history.length === 0 ? (
+              {rewindPlaylists.length === 0 ? (
                 <div className="empty-state">
-                  <HistoryIcon size={36} color="var(--text-muted)" />
-                  <p>No listening history yet.</p>
-                  <span>Tracks you listen to will be saved here so you can continue where you left off.</span>
+                  <RotateCcw size={36} color="var(--text-muted)" />
+                  <p>No Rewind Playlists yet.</p>
+                  <span>Playlists and recommendations you listen to will automatically be saved here so you can rewind and replay them anytime!</span>
                 </div>
               ) : (
                 <div className="list-container">
                   <div className="list-header">
                     <div className="upcoming-title-wrap">
-                      <span>Played History</span>
-                      <span className="upcoming-count-badge">{history.length}</span>
+                      <span>Rewind Playlist</span>
+                      <span className="upcoming-count-badge">
+                        {rewindPlaylists.length} {rewindPlaylists.length === 1 ? "saved" : "saved"}
+                      </span>
                     </div>
-                    <button className="clear-btn" onClick={clearHistory} title="Clear history">
+                    <button className="clear-btn" onClick={clearRewindPlaylists} title="Clear all rewind playlists">
                       <Trash2 size={13} />
                       <span>Clear All</span>
                     </button>
                   </div>
-                  {history.map((track, idx) => {
-                    const pos = track.lastPosition || 0;
-                    const dur = track.duration || 0;
-                    const pct = dur > 0 ? Math.min(100, Math.max(0, (pos / dur) * 100)) : 0;
 
+                  {rewindPlaylists.map((pl) => {
+                    const isExpanded = expandedPlaylistId === pl.id;
                     return (
-                      <div
-                        key={`${track.id}-${idx}`}
-                        className="track-item history-item-card cursor-pointer"
-                        onClick={() => playTrack(track, pos > 2 ? pos : 0)}
-                        title={pos > 2 ? `Resume from ${formatSec(pos)} / ${track.duration_string || formatSec(dur)}` : "Play from beginning"}
-                      >
-                        <div className="thumb-container">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={track.thumbnail} alt={track.title} className="item-thumb" />
-                          {pos > 2 && (
-                            <div className="thumb-progress-bar">
-                              <div className="thumb-progress-fill" style={{ width: `${pct}%` }} />
+                      <div key={pl.id} className={`rewind-group-card ${isExpanded ? "rewind-group-expanded" : ""}`}>
+                        <div
+                          className="rewind-card cursor-pointer"
+                          onClick={() => {
+                            restoreRewindPlaylist(pl.id, 0);
+                            setActiveTab("queue");
+                          }}
+                          title={`Rewind and play "${pl.seedTitle}" playlist (${pl.trackCount} songs)`}
+                        >
+                          <div className="rewind-thumb-wrap">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={pl.thumbnail} alt={pl.seedTitle} className="rewind-thumb" />
+                            <div className="rewind-track-pill">
+                              <ListMusic size={11} />
+                              <span>{pl.trackCount}</span>
                             </div>
-                          )}
-                        </div>
+                          </div>
 
-                        <div className="item-info">
-                          <span className="item-title">{track.title}</span>
-                          <span className="item-artist">{track.uploader}</span>
-                          <div className="history-meta-row">
-                            {pos > 2 ? (
-                              <span className="history-resume-tag">
-                                Resume @ {formatSec(pos)} / {track.duration_string || formatSec(dur)}
-                              </span>
-                            ) : (
-                              <span className="history-duration-tag">
-                                {track.duration_string || (dur > 0 ? formatSec(dur) : "Audio")}
-                              </span>
-                            )}
+                          <div className="rewind-info">
+                            <span className="rewind-title" title={pl.seedTitle}>
+                              {pl.seedTitle}
+                            </span>
+                            <span className="rewind-artist">
+                              {pl.seedArtist} • {formatRelativeTime(pl.playedAt)}
+                            </span>
+                            <div className="rewind-sub-actions">
+                              <button
+                                type="button"
+                                className="rewind-toggle-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedPlaylistId(isExpanded ? null : pl.id);
+                                }}
+                                title={isExpanded ? "Hide songs" : "View songs in this playlist"}
+                              >
+                                <span>{isExpanded ? "Hide songs" : `View songs (${pl.trackCount})`}</span>
+                                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="rewind-actions">
+                            <button
+                              className="item-play-btn"
+                              title="Rewind & Play All"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                restoreRewindPlaylist(pl.id, 0);
+                                setActiveTab("queue");
+                              }}
+                            >
+                              <Play size={14} color="#ffffff" style={{ marginLeft: "2px" }} />
+                            </button>
+                            <button
+                              className="item-del-btn"
+                              title="Remove from Rewind"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeRewindPlaylist(pl.id);
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </div>
 
-                        <div className="item-actions">
-                          <button
-                            className="item-play-btn"
-                            title={pos > 2 ? `Resume from ${formatSec(pos)}` : "Play"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playTrack(track, pos > 2 ? pos : 0);
-                            }}
-                          >
-                            <Play size={14} color="#ffffff" style={{ marginLeft: "2px" }} />
-                          </button>
-                        </div>
+                        {/* Expandable Songs List inside this Playlist */}
+                        {isExpanded && (
+                          <div className="rewind-songs-list">
+                            <div className="rewind-songs-header">
+                              <span>Songs in this Playlist ({pl.tracks.length})</span>
+                              <span className="rewind-songs-hint">Click any song to play from here</span>
+                            </div>
+                            {pl.tracks.map((track, tIdx) => (
+                              <div
+                                key={`${track.id}-${tIdx}`}
+                                className="rewind-song-item"
+                                onClick={() => {
+                                  restoreRewindPlaylist(pl.id, tIdx);
+                                  setActiveTab("queue");
+                                }}
+                                title={`Play "${track.title}"`}
+                              >
+                                <span className="rewind-song-idx">{tIdx + 1}</span>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={track.thumbnail || "/music-placeholder.png"}
+                                  alt={track.title}
+                                  className="rewind-song-thumb"
+                                />
+                                <div className="rewind-song-details">
+                                  <span className="rewind-song-title">{track.title}</span>
+                                  <span className="rewind-song-artist">{track.uploader || "YouTube"}</span>
+                                </div>
+                                <span className="rewind-song-duration">
+                                  {track.duration_string || ""}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="rewind-song-play-icon"
+                                  title="Play"
+                                >
+                                  <Play size={11} fill="currentColor" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -368,6 +467,7 @@ export function QueueDrawer() {
               )}
             </>
           )}
+
         </div>
       </div>
 
@@ -623,6 +723,46 @@ export function QueueDrawer() {
           opacity: 0.6;
         }
 
+        .finding-related-banner {
+          font-size: 0.72rem;
+          color: var(--accent-cyan);
+          background: rgba(0, 240, 255, 0.08);
+          border: 1px solid rgba(0, 240, 255, 0.2);
+          border-radius: var(--radius-sm);
+          padding: 6px 10px;
+          text-align: center;
+          margin-bottom: 4px;
+          animation: pulseGlow 1.8s infinite ease-in-out;
+        }
+
+        .bottom-loading-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 12px;
+          font-size: 0.74rem;
+          color: var(--accent-cyan);
+          background: rgba(0, 240, 255, 0.06);
+          border: 1px dashed rgba(0, 240, 255, 0.25);
+          border-radius: var(--radius-sm);
+          margin-top: 4px;
+        }
+
+        .bottom-loading-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--accent-cyan);
+          box-shadow: 0 0 8px var(--accent-cyan);
+          animation: pulseGlow 1.2s infinite ease-in-out;
+        }
+
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.5; transform: scale(0.92); }
+          50% { opacity: 1; transform: scale(1.08); }
+        }
+
         /* ── Queue track item ── */
         .track-item {
           display: flex;
@@ -837,9 +977,250 @@ export function QueueDrawer() {
           background: rgba(255, 0, 51, 0.15);
         }
 
+        /* ── Rewind Playlist card ── */
+        .rewind-group-card {
+          border-radius: var(--radius-md);
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-subtle);
+          overflow: hidden;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .rewind-group-card.rewind-group-expanded {
+          border-color: rgba(0, 240, 255, 0.45);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55), 0 0 15px rgba(0, 240, 255, 0.1);
+        }
+
+        .rewind-card {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 12px;
+          background: transparent;
+          transition: background-color 0.15s ease;
+          position: relative;
+        }
+
+        .rewind-card:hover {
+          background: var(--bg-hover);
+        }
+
+        .rewind-thumb-wrap {
+          position: relative;
+          width: 50px;
+          height: 50px;
+          min-width: 50px;
+          min-height: 50px;
+          border-radius: var(--radius-sm);
+          overflow: hidden;
+          background: var(--bg-base);
+          flex-shrink: 0;
+        }
+
+        .rewind-thumb {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .rewind-track-pill {
+          position: absolute;
+          bottom: 2px;
+          right: 2px;
+          background: rgba(0, 0, 0, 0.82);
+          backdrop-filter: blur(4px);
+          color: var(--accent-cyan);
+          font-size: 0.65rem;
+          font-weight: 700;
+          padding: 1px 4px;
+          border-radius: 3px;
+          display: flex;
+          align-items: center;
+          gap: 3px;
+        }
+
+        .rewind-info {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .rewind-title {
+          font-size: 0.84rem;
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+        }
+
+        .rewind-artist {
+          font-size: 0.72rem;
+          color: var(--text-muted);
+          margin-top: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: block;
+        }
+
+        .rewind-sub-actions {
+          margin-top: 4px;
+          display: flex;
+          align-items: center;
+        }
+
+        .rewind-toggle-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 2px 8px;
+          font-size: 0.7rem;
+          font-weight: 600;
+          color: var(--accent-cyan);
+          background: rgba(0, 240, 255, 0.08);
+          border: 1px solid rgba(0, 240, 255, 0.22);
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .rewind-toggle-btn:hover {
+          background: rgba(0, 240, 255, 0.18);
+          border-color: var(--accent-cyan);
+          transform: translateY(-1px);
+        }
+
+        .rewind-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        /* Expandable list of songs */
+        .rewind-songs-list {
+          border-top: 1px solid var(--border-subtle);
+          background: rgba(0, 0, 0, 0.35);
+          max-height: 290px;
+          overflow-y: auto;
+          padding: 6px 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .rewind-songs-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 4px 6px 6px;
+          font-size: 0.68rem;
+          font-weight: 600;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .rewind-songs-hint {
+          font-size: 0.64rem;
+          color: var(--accent-cyan);
+          text-transform: none;
+          letter-spacing: normal;
+          opacity: 0.85;
+        }
+
+        .rewind-song-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 8px;
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: background-color 0.15s ease, transform 0.1s ease;
+          border: 1px solid transparent;
+        }
+
+        .rewind-song-item:hover {
+          background: rgba(255, 255, 255, 0.07);
+          border-color: rgba(0, 240, 255, 0.25);
+          transform: translateX(2px);
+        }
+
+        .rewind-song-idx {
+          font-size: 0.68rem;
+          color: var(--text-muted);
+          width: 16px;
+          text-align: right;
+          flex-shrink: 0;
+        }
+
+        .rewind-song-thumb {
+          width: 32px;
+          height: 32px;
+          min-width: 32px;
+          border-radius: 4px;
+          object-fit: cover;
+          background: var(--bg-base);
+          flex-shrink: 0;
+        }
+
+        .rewind-song-details {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .rewind-song-title {
+          display: block;
+          font-size: 0.76rem;
+          font-weight: 500;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .rewind-song-artist {
+          display: block;
+          font-size: 0.66rem;
+          color: var(--text-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .rewind-song-duration {
+          font-size: 0.68rem;
+          color: var(--text-muted);
+          margin-right: 4px;
+          flex-shrink: 0;
+        }
+
+        .rewind-song-play-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border: none;
+          background: rgba(0, 240, 255, 0.15);
+          color: var(--accent-cyan);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: all 0.15s ease;
+        }
+
+        .rewind-song-item:hover .rewind-song-play-icon {
+          background: var(--accent-cyan);
+          color: #000;
+          transform: scale(1.1);
+        }
+
         .cursor-pointer {
           cursor: pointer;
         }
+
 
         @media (max-width: 500px) {
           .drawer-panel {

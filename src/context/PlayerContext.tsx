@@ -21,127 +21,27 @@ function isMobileClient(): boolean {
   );
 }
 
-export interface Track {
-  id: string;
-  title: string;
-  uploader: string;
-  duration: number;
-  duration_string: string;
-  thumbnail: string;
-  audioUrl?: string;
-  url?: string;
-  format?: string;
-  lastPosition?: number;
-  playedAt?: number;
-}
+import type {
+  Track,
+  LastSessionState,
+  RewindPlaylist,
+  PlayerContextType,
+  PlaybackStatus,
+  PlayerActions,
+} from "./playerTypes";
 
-export interface LastSessionState {
-  track: Track;
-  position: number;
-  duration: number;
-  timestamp: number;
-}
-
-export interface RewindPlaylist {
-  id: string;
-  seedId: string;
-  title: string;
-  seedTitle: string;
-  seedArtist: string;
-  thumbnail: string;
-  trackCount: number;
-  tracks: Track[];
-  playedAt: number;
-}
-
-interface PlayerContextType {
-  currentTrack: Track | null;
-  isPlaying: boolean;
-  isLoading: boolean;
-  /** Prefer usePlayerTime() — kept off the hot path so cards don't re-render every tick. */
-  getCurrentTime: () => number;
-  subscribeTime: (listener: (t: number) => void) => () => void;
-  duration: number;
-  volume: number;
-  isMuted: boolean;
-  playbackRate: number;
-  isLooping: boolean;
-  isShuffling: boolean;
-  queue: Track[];
-  /** Index of the currently playing track inside `queue` (-1 if none). */
-  queueIndex: number;
-  history: Track[];
-  rewindPlaylists: RewindPlaylist[];
-  restoreRewindPlaylist: (id: string, startIndex?: number) => Promise<void>;
-  removeRewindPlaylist: (id: string) => void;
-  clearRewindPlaylists: () => void;
-  lastSession: LastSessionState | null;
-  showVisualizer: boolean;
-  showDirectModal: boolean;
-  showQueueDrawer: boolean;
-  showVideoModal: boolean;
-  showDownloadModal: boolean;
-  downloadTrack: Track | null;
-  error: string | null;
-  analyser: AnalyserNode | null;
-  playTrack: (
-    track: Track,
-    startTime?: number,
-    options?: { fromQueue?: boolean }
-  ) => Promise<void>;
-  playFromQueue: (index: number) => Promise<void>;
-  resumeLastSession: () => Promise<void>;
-  dismissLastSession: () => void;
-  togglePlay: () => void;
-  pauseAudio: () => void;
-  resumeAudio: () => void;
-  syncTimeAndPlay: (seconds: number, autoPlay?: boolean) => void;
-  seek: (seconds: number) => void;
-  skipBy: (seconds: number) => void;
-  setVolume: (val: number) => void;
-  toggleMute: () => void;
-  setPlaybackRate: (rate: number) => void;
-  toggleLoop: () => void;
-  toggleShuffle: () => void;
-  isAutoplay: boolean;
-  toggleAutoplay: () => void;
-  playNext: () => void;
-  playPrev: () => void;
-  addToQueue: (track: Track) => void;
-  addToPlayNext: (track: Track) => void;
-  removeFromQueue: (index: number) => void;
-  moveInQueue: (fromIndex: number, toIndex: number) => void;
-  clearQueue: () => void;
-  clearHistory: () => void;
-  setShowVisualizer: (val: boolean | ((prev: boolean) => boolean)) => void;
-  setShowDirectModal: (val: boolean) => void;
-  setShowQueueDrawer: (val: boolean | ((prev: boolean) => boolean)) => void;
-  setShowVideoModal: (val: boolean) => void;
-  setShowDownloadModal: (val: boolean) => void;
-  openDownloadModal: (track?: Track) => void;
-  playDirectUrl: (urlOrId: string) => Promise<void>;
-  isFindingRelated: boolean;
-  loadMoreRelatedSongs: () => Promise<void>;
-}
-
-type PlaybackStatus = {
-  currentId: string | null;
-  isPlaying: boolean;
-  isLoading: boolean;
+export type {
+  Track,
+  LastSessionState,
+  RewindPlaylist,
+  PlayerContextType,
+  PlaybackStatus,
+  PlayerActions,
 };
 
-type PlayerActions = {
-  playTrack: (
-    track: Track,
-    startTime?: number,
-    options?: { fromQueue?: boolean }
-  ) => Promise<void>;
-  playFromQueue: (index: number) => Promise<void>;
-  togglePlay: () => void;
-  addToQueue: (track: Track) => void;
-  addToPlayNext: (track: Track) => void;
-  openDownloadModal: (track?: Track) => void;
-};
+import { usePlayerStorage } from "./usePlayerStorage";
+import { usePlayerMediaSession } from "./usePlayerMediaSession";
+import { usePlayerKeyboard } from "./usePlayerKeyboard";
 
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -157,166 +57,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolumeState] = useState<number>(0.85);
   const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [playbackRate, setPlaybackRateState] = useState<number>(1);
   const [isLooping, setIsLooping] = useState<boolean>(false);
   const [isShuffling, setIsShuffling] = useState<boolean>(false);
-  const [isAutoplay, setIsAutoplay] = useState<boolean>(true);
-  const [queue, setQueue] = useState<Track[]>([]);
-  const [queueIndex, setQueueIndex] = useState<number>(-1);
-  const [history, setHistory] = useState<Track[]>([]);
-  const historyRef = useRef<Track[]>(history);
-  historyRef.current = history;
-  const [rewindPlaylists, setRewindPlaylists] = useState<RewindPlaylist[]>([]);
-  const rewindPlaylistsRef = useRef<RewindPlaylist[]>(rewindPlaylists);
-  rewindPlaylistsRef.current = rewindPlaylists;
+  const {
+    history,
+    setHistory,
+    historyRef,
+    rewindPlaylists,
+    setRewindPlaylists,
+    rewindPlaylistsRef,
+    queue,
+    setQueue,
+    queueIndex,
+    setQueueIndex,
+    lastSession,
+    setLastSession,
+    volume,
+    setVolumeState,
+    playbackRate,
+    setPlaybackRateState,
+    isAutoplay,
+    setIsAutoplay,
+    saveHistoryToStorage,
+    saveSessionToStorage,
+  } = usePlayerStorage();
+
   const currentSeedTrackRef = useRef<Track | null>(null);
-  const [lastSession, setLastSession] = useState<LastSessionState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isFindingRelated, setIsFindingRelated] = useState<boolean>(false);
-  const [prefsHydrated, setPrefsHydrated] = useState(false);
-
-  // Load history, rewind playlists, queue, lastSession, and playback prefs from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedHistory = localStorage.getItem("yt_audio_played_history");
-      if (savedHistory) {
-        const parsed = JSON.parse(savedHistory);
-        if (Array.isArray(parsed)) {
-          setHistory(parsed);
-        }
-      }
-
-      const savedRewind = localStorage.getItem("yt_audio_rewind_playlists");
-      if (savedRewind) {
-        const parsed = JSON.parse(savedRewind);
-        if (Array.isArray(parsed)) {
-          setRewindPlaylists(parsed);
-        }
-      }
-
-      const savedQueue = localStorage.getItem("yt_audio_saved_queue");
-      if (savedQueue) {
-        const parsed = JSON.parse(savedQueue);
-        if (Array.isArray(parsed)) {
-          setQueue(parsed);
-        }
-      }
-
-      const savedQueueIndex = localStorage.getItem("yt_audio_queue_index");
-      if (savedQueueIndex != null) {
-        const idx = parseInt(savedQueueIndex, 10);
-        if (!isNaN(idx)) setQueueIndex(idx);
-      }
-
-      const savedSession = localStorage.getItem("yt_audio_last_session");
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        if (parsed && parsed.track && parsed.position > 1) {
-          setLastSession(parsed);
-        }
-      }
-
-      const savedPrefs = localStorage.getItem("yt_audio_player_prefs");
-      if (savedPrefs) {
-        const prefs = JSON.parse(savedPrefs);
-        if (typeof prefs.volume === "number") {
-          setVolumeState(Math.max(0, Math.min(1, prefs.volume)));
-        }
-        if (typeof prefs.playbackRate === "number") {
-          setPlaybackRateState(prefs.playbackRate);
-        }
-        if (typeof prefs.isAutoplay === "boolean") {
-          setIsAutoplay(prefs.isAutoplay);
-        }
-      }
-    } catch {
-      // LocalStorage unavailable or corrupted
-    } finally {
-      setPrefsHydrated(true);
-    }
-  }, []);
-
-  // Persist volume / rate / autoplay
-  useEffect(() => {
-    if (!prefsHydrated) return;
-    try {
-      localStorage.setItem(
-        "yt_audio_player_prefs",
-        JSON.stringify({
-          volume,
-          playbackRate,
-          isAutoplay,
-        })
-      );
-    } catch {
-      // Ignore
-    }
-  }, [volume, playbackRate, isAutoplay, prefsHydrated]);
-
-  // Save played history to localStorage whenever it changes
-  const saveHistoryToStorage = (updatedHistory: Track[]) => {
-    try {
-      localStorage.setItem("yt_audio_played_history", JSON.stringify(updatedHistory));
-    } catch {
-      // Ignore
-    }
-  };
-
-  // Save last playback session (track, current position, duration, timestamp)
-  // Periodic saves write localStorage only — avoid React re-renders every few seconds.
-  const saveSessionToStorage = useCallback((track: Track, position: number, dur: number, syncReact = false) => {
-    if (!track || position < 1) return;
-    try {
-      const sessionData: LastSessionState = {
-        track,
-        position,
-        duration: dur,
-        timestamp: Date.now(),
-      };
-      localStorage.setItem("yt_audio_last_session", JSON.stringify(sessionData));
-
-      // Patch history positions in storage without forcing a full UI re-render
-      try {
-        const raw = localStorage.getItem("yt_audio_played_history");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            const updated = parsed.map((t: Track) =>
-              t.id === track.id ? { ...t, lastPosition: position, playedAt: Date.now() } : t
-            );
-            localStorage.setItem("yt_audio_played_history", JSON.stringify(updated));
-            historyRef.current = updated;
-          }
-        }
-      } catch {
-        // Ignore history patch errors
-      }
-
-      if (syncReact) {
-        setLastSession(sessionData);
-        setHistory((prev) => {
-          const updated = prev.map((t) =>
-            t.id === track.id ? { ...t, lastPosition: position, playedAt: Date.now() } : t
-          );
-          return updated;
-        });
-      }
-    } catch {
-      // Ignore
-    }
-  }, []);
-
-  // Save queue + playlist cursor to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("yt_audio_saved_queue", JSON.stringify(queue));
-      localStorage.setItem("yt_audio_queue_index", String(queueIndex));
-    } catch {
-      // Ignore
-    }
-  }, [queue, queueIndex]);
 
   const toggleAutoplay = useCallback(() => {
     setIsAutoplay((prev) => !prev);
@@ -1243,137 +1012,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     prefetchTrackStream(next);
   }, [currentTrack?.id, nextTrackId, prefetchTrackStream]);
 
-  // Media Session API — lock screen / headset controls
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
+  usePlayerMediaSession({
+    currentTrack,
+    isPlaying,
+    duration,
+    playbackRate,
+    currentTimeRef,
+    audioRef,
+    playNext,
+    playPrev,
+    seek,
+    skipBy,
+  });
 
-    if (!currentTrack) {
-      try {
-        navigator.mediaSession.metadata = null;
-      } catch {
-        // Ignore
-      }
-      return;
-    }
-
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.title,
-        artist: currentTrack.uploader,
-        artwork: currentTrack.thumbnail
-          ? [
-              { src: currentTrack.thumbnail, sizes: "320x180", type: "image/jpeg" },
-              { src: currentTrack.thumbnail, sizes: "512x512", type: "image/jpeg" },
-            ]
-          : [],
-      });
-    } catch {
-      // MediaMetadata unsupported quirks
-    }
-
-    const bind = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
-      try {
-        navigator.mediaSession.setActionHandler(action, handler);
-      } catch {
-        // Some actions unsupported on this platform
-      }
-    };
-
-    bind("play", () => {
-      audioRef.current?.play().catch(() => {});
-    });
-    bind("pause", () => {
-      audioRef.current?.pause();
-    });
-    bind("previoustrack", () => playPrev());
-    bind("nexttrack", () => playNext());
-    bind("seekbackward", (details) => {
-      skipBy(-(details.seekOffset || 10));
-    });
-    bind("seekforward", (details) => {
-      skipBy(details.seekOffset || 10);
-    });
-    bind("seekto", (details) => {
-      if (typeof details.seekTime === "number") seek(details.seekTime);
-    });
-
-    return () => {
-      bind("play", null);
-      bind("pause", null);
-      bind("previoustrack", null);
-      bind("nexttrack", null);
-      bind("seekbackward", null);
-      bind("seekforward", null);
-      bind("seekto", null);
-    };
-  }, [currentTrack, playNext, playPrev, seek, skipBy]);
-
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-    try {
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
-    } catch {
-      // Ignore
-    }
-  }, [isPlaying]);
-
-  useEffect(() => {
-    if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-    if (!currentTrack || !duration) return;
-    try {
-      navigator.mediaSession.setPositionState({
-        duration: Math.max(duration, 0),
-        playbackRate: playbackRate || 1,
-        position: Math.min(Math.max(currentTimeRef.current, 0), Math.max(duration, 0)),
-      });
-    } catch {
-      // Ignore unsupported position state
-    }
-  }, [currentTrack, duration, playbackRate, isPlaying]);
-
-  // Global keyboard shortcuts (ignore when typing in inputs)
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        tag === "SELECT" ||
-        target?.isContentEditable
-      ) {
-        return;
-      }
-
-      if (e.code === "Space") {
-        e.preventDefault();
-        togglePlay();
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        skipBy(e.shiftKey ? -30 : -10);
-        return;
-      }
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        skipBy(e.shiftKey ? 30 : 10);
-        return;
-      }
-      if (e.key === "n" || e.key === "N") {
-        e.preventDefault();
-        playNext();
-        return;
-      }
-      if (e.key === "p" || e.key === "P") {
-        e.preventDefault();
-        playPrev();
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [togglePlay, skipBy, playNext, playPrev]);
+  usePlayerKeyboard({
+    togglePlay,
+    skipBy,
+    playNext,
+    playPrev,
+  });
 
   const actionsValue = useMemo<PlayerActions>(
     () => ({

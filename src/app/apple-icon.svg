@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="appleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff0033" />
+      <stop offset="50%" stop-color="#e60026" />
+      <stop offset="100%" stop-color="#8a2be2" />
+    </linearGradient>
+  </defs>
+
+  <rect width="180" height="180" rx="40" fill="url(#appleGrad)" />
+  <rect width="180" height="180" rx="40" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="4" />
+
+  <!-- Left Note Head -->
+  <ellipse cx="65" cy="118" rx="16" ry="12" transform="rotate(-20 65 118)" fill="#ffffff" />
+  <!-- Left Stem -->
+  <rect x="74" y="55" width="10" height="65" rx="5" fill="#ffffff" />
+
+  <!-- Right Note Head -->
+  <ellipse cx="120" cy="106" rx="16" ry="12" transform="rotate(-20 120 106)" fill="#ffffff" />
+  <!-- Right Stem -->
+  <rect x="129" y="43" width="10" height="65" rx="5" fill="#ffffff" />
+
+  <!-- Connecting Beam -->
+  <polygon points="74,55 139,43 139,63 74,75" fill="#ffffff" />
+
+  <!-- Glowing Cyan Live Indicator Dot -->
+  <circle cx="140" cy="38" r="14" fill="#00f0ff" />
+  <circle cx="140" cy="38" r="7" fill="#ffffff" />
+</svg>

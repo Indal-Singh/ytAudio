@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Flame,
   Coffee,
@@ -13,6 +14,9 @@ import {
   Sparkles,
   Music,
   X,
+  Info,
+  Zap,
+  GitCommit,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import "./Sidebar.css";
@@ -118,15 +122,71 @@ export function Sidebar({
             <span className="nav-label-full">Playlist & Rewind</span>
             <span className="nav-label-mini">Rewind</span>
           </button>
+        </div>
 
+        <div className="sidebar-divider" />
+
+        {/* Explore & Info Section */}
+        <div className="sidebar-section">
+          <div className="section-label">EXPLORE</div>
+          <Link
+            href="/about"
+            className="nav-item"
+            style={{ textDecoration: "none" }}
+            title="Why YTaudio?"
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+            }}
+          >
+            <div className="nav-icon-box">
+              <Info size={20} />
+            </div>
+            <span className="nav-label-full">Why YTaudio?</span>
+            <span className="nav-label-mini">About</span>
+          </Link>
+          <Link
+            href="/features"
+            className="nav-item"
+            style={{ textDecoration: "none" }}
+            title="All Features"
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+            }}
+          >
+            <div className="nav-icon-box">
+              <Zap size={20} />
+            </div>
+            <span className="nav-label-full">Features</span>
+            <span className="nav-label-mini">Features</span>
+          </Link>
+          <Link
+            href="/changelog"
+            className="nav-item"
+            style={{ textDecoration: "none" }}
+            title="Version Changelog & Release Notes"
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+            }}
+          >
+            <div className="nav-icon-box">
+              <GitCommit size={20} />
+            </div>
+            <span className="nav-label-full">Changelog</span>
+            <span className="nav-label-mini">v2.1</span>
+          </Link>
         </div>
 
         {/* Footer Brand Info (Expanded mode only) */}
         <div className="sidebar-footer">
-          <div className="tech-badge">
+          <Link
+            href="/changelog"
+            className="tech-badge"
+            style={{ textDecoration: "none" }}
+            title="View v2.1.0 release notes"
+          >
             <Sparkles size={14} color="#00f0ff" />
-            <span>Made for listening</span>
-          </div>
+            <span>v2.1.0 • Changelog</span>
+          </Link>
         </div>
       </aside>
 

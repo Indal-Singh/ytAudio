@@ -9,9 +9,7 @@ export function SsrPreloaderClient() {
     if (preloader) {
       preloader.classList.add("loaded");
       const timer = setTimeout(() => {
-        if (preloader.parentNode) {
-          preloader.parentNode.removeChild(preloader);
-        }
+        preloader.style.display = "none";
       }, 400);
       return () => clearTimeout(timer);
     }

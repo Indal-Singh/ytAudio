@@ -15,10 +15,60 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "YTaudio — Stream YouTube as Audio",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://yta.indalsingh.dev"),
+  title: {
+    default: "YTaudio — Free YouTube Audio Streamer & Background Player",
+    template: "%s | YTaudio",
+  },
   description:
-    "YTaudio is a fast, audio-first player for YouTube. Search, queue, and stream high-quality audio with a clean modern interface.",
+    "Listen to YouTube music in the background without video data drain. Free YouTube audio streamer with lock-screen playback, playlist queue, MP3/MP4 conversion, and audio visualizer.",
+  keywords: [
+    "youtube audio streamer",
+    "youtube music background player",
+    "listen to youtube with screen off",
+    "save mobile data streaming music",
+    "convert youtube to mp3",
+    "youtube music web player",
+    "ytaudio",
+  ],
+  authors: [{ name: "YTaudio Team" }],
+  creator: "YTaudio",
+  applicationName: "YTaudio",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/apple-icon.svg", type: "image/svg+xml" },
+    ],
+  },
+  openGraph: {
+    title: "YTaudio — Free YouTube Audio Streamer & Background Player",
+    description:
+      "Listen to YouTube music in the background without video data drain. Save data, battery, and enjoy distraction-free high-fidelity sound.",
+    siteName: "YTaudio",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "YTaudio — Free YouTube Audio Streamer & Background Player",
+    description:
+      "Stream YouTube music with screen off. Save data & battery with high-fidelity audio.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
+
 
 export default function RootLayout({
   children,

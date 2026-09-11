@@ -47,3 +47,17 @@ export function getAppPort(): number {
   return Number.isFinite(n) && n > 0 ? n : 3000;
 }
 
+/** Optional cookie arguments for yt-dlp to bypass YouTube bot blocks. */
+export function getYtDlpCookieArgs(): string[] {
+  const cookiePath = process.env.YTDLP_COOKIES_PATH?.trim();
+  if (cookiePath && existsSync(cookiePath)) {
+    return ["--cookies", cookiePath];
+  }
+  const browser = process.env.YTDLP_COOKIES_BROWSER?.trim();
+  if (browser) {
+    return ["--cookies-from-browser", browser];
+  }
+  return [];
+}
+
+

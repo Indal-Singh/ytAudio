@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { spawn, type ChildProcess } from "child_process";
 import { Readable } from "stream";
 import { getVideoDirectUrl, getVideoFormats } from "@/lib/ytdlp";
-import { getFfmpegBin, getYtDlpBin } from "@/lib/binaries";
+import { getFfmpegBin, getYtDlpBin, getYtDlpCookieArgs } from "@/lib/binaries";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -160,6 +160,7 @@ export async function GET(request: NextRequest) {
           [
             "--no-update",
             "--no-warnings",
+            ...getYtDlpCookieArgs(),
             "--newline",
             "--extractor-args",
             "youtube:player_client=visionos,android",
@@ -301,6 +302,8 @@ export async function GET(request: NextRequest) {
       getYtDlpBin(),
       [
         "--no-update",
+        "--no-warnings",
+        ...getYtDlpCookieArgs(),
         "--extractor-args",
         "youtube:player_client=visionos,android",
         "-f",
@@ -308,7 +311,6 @@ export async function GET(request: NextRequest) {
         "-o",
         "-",
         "--no-playlist",
-        "--no-warnings",
         targetUrl,
       ],
       { stdio: ["ignore", "pipe", "pipe"] }

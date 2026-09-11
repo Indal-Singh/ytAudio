@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import { getYtDlpBin } from "@/lib/binaries";
+import { getYtDlpBin, getYtDlpCookieArgs } from "@/lib/binaries";
 
 const execFileAsync = promisify(execFile);
 
@@ -118,6 +118,7 @@ export async function searchVideos(query: string, limit = 16, startIndex = 1): P
     const args = [
       "--no-update",
       "--no-warnings",
+      ...getYtDlpCookieArgs(),
       "--flat-playlist",
       "--dump-json",
       "--default-search",
@@ -178,6 +179,7 @@ export async function getAudioStreamDetails(videoIdOrUrl: string): Promise<Audio
     const args = [
       "--no-update",
       "--no-warnings",
+      ...getYtDlpCookieArgs(),
       "--extractor-args",
       "youtube:player_client=visionos,android",
       "-f",
@@ -245,6 +247,7 @@ export async function getVideoDirectUrl(
     const args = [
       "--no-update",
       "--no-warnings",
+      ...getYtDlpCookieArgs(),
       "-J",
       "--no-playlist",
       targetUrl,
@@ -332,6 +335,7 @@ export async function getVideoFormats(videoIdOrUrl: string): Promise<{
     const args = [
       "--no-update",
       "--no-warnings",
+      ...getYtDlpCookieArgs(),
       "--extractor-args",
       "youtube:player_client=visionos,android",
       "-J",

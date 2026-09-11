@@ -252,11 +252,90 @@ export default function Home() {
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, loadMoreVideos]);
 
-  // Initial home feed — once only (do NOT re-run when callbacks/history change)
+  // Initial home feed — check URL params or default to trending music
   useEffect(() => {
-    fetchVideos("trending music");
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get("q");
+    const catParam = params.get("category");
+
+    if (qParam) {
+      setCurrentQuery(qParam);
+      setActiveCategory("");
+      fetchVideos(qParam);
+    } else if (catParam) {
+      setActiveCategory(catParam);
+      setCurrentQuery(catParam);
+      fetchVideos(catParam);
+    } else {
+      fetchVideos("trending music");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
   }, []);
+
+  // Listen for browser Back/Forward navigation to restore previous feed or category
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = (e: PopStateEvent) => {
+      // If back button was used to dismiss a modal or drawer, don't change feed
+      if (e.state?.isModal) return;
+
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get("q");
+      const cat = params.get("category");
+
+      if (q) {
+        setCurrentQuery(q);
+        setActiveCategory("");
+        fetchVideos(q);
+      } else if (cat) {
+        setActiveCategory(cat);
+        setCurrentQuery(cat);
+        fetchVideos(cat);
+      } else {
+        setActiveCategory("trending music");
+        setCurrentQuery("trending music");
+        fetchVideos("trending music");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [fetchVideos]);
+
+  // Mobile sidebar back button integration
+  const isMobileSidebarPopstateRef = React.useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth > 768) return;
+
+    if (!sidebarCollapsed) {
+      window.history.pushState({ isModal: true, modal: "sidebar" }, "");
+    } else {
+      if (!isMobileSidebarPopstateRef.current && window.history.state?.modal === "sidebar") {
+        window.history.back();
+      }
+    }
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleSidebarPop = () => {
+      if (window.innerWidth <= 768 && !sidebarCollapsed) {
+        isMobileSidebarPopstateRef.current = true;
+        setSidebarCollapsed(true);
+        setTimeout(() => {
+          isMobileSidebarPopstateRef.current = false;
+        }, 80);
+      }
+    };
+
+    window.addEventListener("popstate", handleSidebarPop);
+    return () => window.removeEventListener("popstate", handleSidebarPop);
+  }, [sidebarCollapsed]);
 
   // Warm personalized recommendations when listen history IDs actually change
   useEffect(() => {
@@ -266,9 +345,15 @@ export default function Home() {
   }, [historySeedKey, history.length, fetchRecommended]);
 
   const handleSearch = (query: string) => {
-    setCurrentQuery(query);
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    setCurrentQuery(trimmed);
     setActiveCategory("");
-    fetchVideos(query);
+    fetchVideos(trimmed);
+    if (typeof window !== "undefined") {
+      const url = `/?q=${encodeURIComponent(trimmed)}`;
+      window.history.pushState({ type: "feed", query: trimmed, category: "" }, "", url);
+    }
   };
 
   const handleCategorySelect = (query: string) => {
@@ -277,11 +362,18 @@ export default function Home() {
       setActiveCategory("trending music");
       setCurrentQuery("trending music");
       fetchVideos("trending music");
+      if (typeof window !== "undefined") {
+        window.history.pushState({ type: "feed", query: "trending music", category: "trending music" }, "", "/");
+      }
       return;
     }
     setActiveCategory(query);
     setCurrentQuery(query);
     fetchVideos(query);
+    if (typeof window !== "undefined") {
+      const url = query === "trending music" ? "/" : `/?category=${encodeURIComponent(query)}`;
+      window.history.pushState({ type: "feed", query, category: query }, "", url);
+    }
   };
 
   const feedTitle = isForYou

@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { SsrPreloaderClient } from "@/components/SsrPreloaderClient";
+import { PwaRegister } from "@/components/PwaRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +57,14 @@ export const metadata: Metadata = {
     description:
       "Stream YouTube music with screen off. Save data & battery with high-fidelity audio.",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "YTaudio",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   robots: {
     index: true,
     follow: true,
@@ -67,6 +76,13 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0b0e",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 
@@ -191,7 +207,10 @@ export default function RootLayout({
         {/* Client Hydration Handler to smoothly dismiss the preloader */}
         <SsrPreloaderClient />
 
-        <PlayerProvider>{children}</PlayerProvider>
+        <PlayerProvider>
+          {children}
+          <PwaRegister />
+        </PlayerProvider>
       </body>
     </html>
   );

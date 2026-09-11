@@ -49,6 +49,39 @@ export function Navbar({ onSearch, onToggleSidebar }: NavbarProps) {
 
   const upcomingCount = Math.max(0, queue.length - queueIndex - 1);
 
+  // Hardware Back button support for mobile search overlay
+  const isMobileSearchPopstateRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (mobileSearchOpen) {
+      window.history.pushState({ isModal: true, modal: "mobileSearch" }, "");
+    } else {
+      if (!isMobileSearchPopstateRef.current && window.history.state?.modal === "mobileSearch") {
+        window.history.back();
+      }
+    }
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      if (mobileSearchOpen) {
+        isMobileSearchPopstateRef.current = true;
+        setMobileSearchOpen(false);
+        setIsFocused(false);
+        setTimeout(() => {
+          isMobileSearchPopstateRef.current = false;
+        }, 80);
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [mobileSearchOpen]);
+
   // Load search history from localStorage
   useEffect(() => {
     try {

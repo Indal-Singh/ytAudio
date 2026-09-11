@@ -17,9 +17,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Auto-generated `robots.txt` with crawler instructions and sitemap link.
   - JSON-LD structured data schemas (`WebApplication`, `AboutPage`, `ItemPage`).
   - Web App Manifest (`manifest.webmanifest`) for PWA installation.
-- **Branded Scalable Vector Favicons**:
-  - Scalable vector icon (`/favicon.svg` and `icon.svg`).
-  - High-res Apple Touch icon (`/apple-icon.svg`).
+- **Hardware & Browser Back Button Navigation**:
+  - Intercepts Android hardware Back gesture and browser Back button to dismiss open modals/drawers (Queue Drawer, Video Player, Download Modal, Direct URL, Visualizer, Mobile Sidebar, Search Overlay) without navigating away from the app.
+  - Bidirectional search & category browser history (`/?q=...` and `/?category=...`) allowing seamless Back/Forward feed exploration.
+  - Generated high-resolution 192x192 and 512x512 maskable PNG icons.
+  - Interactive "Install App" banner via `beforeinstallprompt` API and iOS standalone meta tags.
+  - App shortcuts for instant access to Trending Music, Lofi Beats, and Podcasts.
 - **Environment & Cookie Configuration**:
   - Added `NEXT_PUBLIC_SITE_URL` support across layouts, sitemaps, and crawlers.
   - Added optional `YTDLP_COOKIES_PATH` and `YTDLP_COOKIES_BROWSER` to bypass YouTube bot blocks.

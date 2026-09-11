@@ -42,6 +42,7 @@ export type {
 import { usePlayerStorage } from "./usePlayerStorage";
 import { usePlayerMediaSession } from "./usePlayerMediaSession";
 import { usePlayerKeyboard } from "./usePlayerKeyboard";
+import { usePlayerBackHandler } from "./usePlayerBackHandler";
 
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -171,6 +172,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [showVideoModal, setShowVideoModal] = useState<boolean>(false);
   const [showDownloadModal, setShowDownloadModal] = useState<boolean>(false);
   const [downloadTrack, setDownloadTrack] = useState<Track | null>(null);
+
+  // Hardware/Browser Back button interception for modals & drawers
+  usePlayerBackHandler({
+    showVisualizer,
+    setShowVisualizer,
+    showDirectModal,
+    setShowDirectModal,
+    showQueueDrawer,
+    setShowQueueDrawer,
+    showVideoModal,
+    setShowVideoModal,
+    showDownloadModal,
+    setShowDownloadModal,
+  });
 
   const openDownloadModal = useCallback((track?: Track) => {
     setDownloadTrack(track || currentTrack);

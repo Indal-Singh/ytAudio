@@ -113,7 +113,8 @@ export async function searchVideos(query: string, limit = 16, startIndex = 1): P
   const cacheKey = `search:${query}:${safeStart}:${safeLimit}`;
 
   return withCacheInflight(cacheKey, async () => {
-    const searchQuery = `ytsearch${maxSearchCount}:${query}`;
+    const isUrl = /^(https?:\/\/|www\.)/i.test(query.trim());
+    const searchQuery = isUrl ? query.trim() : `ytsearch${maxSearchCount}:${query}`;
     const args = [
       "--no-update",
       "--no-warnings",
@@ -178,7 +179,7 @@ export async function getAudioStreamDetails(videoIdOrUrl: string): Promise<Audio
       "--no-update",
       "--no-warnings",
       "--extractor-args",
-      "youtube:player_client=android,web",
+      "youtube:player_client=visionos,android",
       "-f",
       "ba/b",
       "-j",
@@ -230,7 +231,7 @@ export interface VideoDirectLink {
   ext: string;
 }
 
-/** Resolve a direct progressive/video URL suitable for opening in a new tab. */
+/** Resolve a direct progressive/video URL for the requested resolution. */
 export async function getVideoDirectUrl(
   videoIdOrUrl: string,
   maxHeight = 720
@@ -241,19 +242,10 @@ export async function getVideoDirectUrl(
 
   return withCacheInflight(cacheKey, async () => {
     const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const format =
-      `best[height<=${height}][ext=mp4][protocol^=http]/` +
-      `best[height<=${height}][ext=mp4]/` +
-      `b[height<=${height}][ext=mp4]/` +
-      `best[ext=mp4]/best`;
-
     const args = [
       "--no-update",
-      "--extractor-args",
-      "youtube:player_client=android,web",
-      "-f",
-      format,
-      "-j",
+      "--no-warnings",
+      "-J",
       "--no-playlist",
       targetUrl,
     ];
@@ -265,9 +257,42 @@ export async function getVideoDirectUrl(
       });
 
       const data = JSON.parse(stdout.trim());
-      const url = data.url || data.requested_formats?.[0]?.url;
+      const rawFormats = Array.isArray(data.formats) ? data.formats : [];
+
+      // Find formats matching the target height or lower, with direct url
+      // Prioritize formats matching exactly or <= height, with direct https url
+      const candidates = rawFormats.filter(
+        (f: { url?: string; height?: number; vcodec?: string; protocol?: string }) =>
+          f.url &&
+          typeof f.height === "number" &&
+          f.height > 0 &&
+          f.vcodec !== "none" &&
+          (f.protocol === "https" || f.protocol === "http")
+      );
+
+      // Exact height match first
+      let bestFormat = candidates.find((f: { height: number }) => f.height === height);
+
+      // If not exact, find the highest resolution <= height
+      if (!bestFormat) {
+        const smaller = candidates
+          .filter((f: { height: number }) => f.height <= height)
+          .sort((a: { height: number }, b: { height: number }) => b.height - a.height);
+        bestFormat = smaller[0];
+      }
+
+      // If still not found, find the closest available
+      if (!bestFormat) {
+        const sorted = [...candidates].sort(
+          (a: { height: number }, b: { height: number }) =>
+            Math.abs(a.height - height) - Math.abs(b.height - height)
+        );
+        bestFormat = sorted[0];
+      }
+
+      const url = bestFormat?.url || data.url;
       if (!url) {
-        throw new Error("Could not extract video stream URL.");
+        throw new Error(`Could not extract video stream URL for ${height}p.`);
       }
 
       return {
@@ -275,11 +300,126 @@ export async function getVideoDirectUrl(
         title: data.title || "Unknown Title",
         url,
         watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
-        ext: data.ext || "mp4",
+        ext: bestFormat?.ext || data.ext || "mp4",
       } satisfies VideoDirectLink;
     } catch (error) {
       console.error("Error extracting video URL:", error);
       throw new Error("Failed to extract video URL.");
+    }
+  });
+}
+
+export interface AvailableQuality {
+  height: number;
+  label: string;
+  fps?: number;
+  hasAudio: boolean;
+  ext: string;
+  filesizeApprox?: number;
+}
+
+/** Get list of actual available video qualities for a given video */
+export async function getVideoFormats(videoIdOrUrl: string): Promise<{
+  id: string;
+  title: string;
+  qualities: AvailableQuality[];
+}> {
+  const videoId = extractVideoId(videoIdOrUrl);
+  const cacheKey = `formats:${videoId}`;
+
+  return withCacheInflight(cacheKey, async () => {
+    const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const args = [
+      "--no-update",
+      "--no-warnings",
+      "--extractor-args",
+      "youtube:player_client=visionos,android",
+      "-J",
+      "--no-playlist",
+      targetUrl,
+    ];
+
+    try {
+      const { stdout } = await execFileAsync(getYtDlpBin(), args, {
+        maxBuffer: 30 * 1024 * 1024,
+        timeout: 30000,
+      });
+
+      const data = JSON.parse(stdout.trim());
+      const rawFormats = Array.isArray(data.formats) ? data.formats : [];
+
+      // Extract unique video heights
+      const qualityMap = new Map<number, AvailableQuality>();
+
+      for (const f of rawFormats) {
+        if (!f.height || typeof f.height !== "number" || f.height < 144) continue;
+        if (f.vcodec === "none" || !f.vcodec) continue;
+
+        const h = f.height;
+        const hasAudio = !!(f.acodec && f.acodec !== "none");
+        const existing = qualityMap.get(h);
+
+        // Quality label
+        let label = `${h}p`;
+        if (h >= 2160) label = "4K Ultra HD (2160p)";
+        else if (h >= 1440) label = "2K Quad HD (1440p)";
+        else if (h >= 1080) label = "1080p Full HD";
+        else if (h >= 720) label = "720p HD";
+        else if (h >= 480) label = "480p Standard";
+        else if (h >= 360) label = "360p Data Saver";
+        else if (h >= 240) label = "240p Low";
+        else if (h >= 144) label = "144p Compact";
+
+        if (f.fps && f.fps > 30 && (h === 720 || h === 1080 || h >= 1440)) {
+          label += ` ${f.fps}fps`;
+        }
+
+        // Prefer formats that have audio or higher bitrate
+        if (!existing || (!existing.hasAudio && hasAudio) || (f.filesize_approx && !existing.filesizeApprox)) {
+          qualityMap.set(h, {
+            height: h,
+            label,
+            fps: f.fps,
+            hasAudio,
+            ext: f.ext || "mp4",
+            filesizeApprox: f.filesize_approx || f.filesize || undefined,
+          });
+        }
+      }
+
+      // Sort qualities descending (highest resolution first)
+      const sortedQualities = Array.from(qualityMap.values()).sort(
+        (a, b) => b.height - a.height
+      );
+
+      // Fallback standard qualities if none could be parsed
+      if (sortedQualities.length === 0) {
+        sortedQualities.push(
+          { height: 1080, label: "1080p Full HD", hasAudio: true, ext: "mp4" },
+          { height: 720, label: "720p HD", hasAudio: true, ext: "mp4" },
+          { height: 480, label: "480p Standard", hasAudio: true, ext: "mp4" },
+          { height: 360, label: "360p Data Saver", hasAudio: true, ext: "mp4" }
+        );
+      }
+
+      return {
+        id: data.id || videoId,
+        title: data.title || "Unknown Video",
+        qualities: sortedQualities,
+      };
+    } catch (error) {
+      console.error("Error getting video formats:", error);
+      // Fallback with standard options
+      return {
+        id: videoId,
+        title: "Video",
+        qualities: [
+          { height: 1080, label: "1080p Full HD", hasAudio: true, ext: "mp4" },
+          { height: 720, label: "720p HD", hasAudio: true, ext: "mp4" },
+          { height: 480, label: "480p Standard", hasAudio: true, ext: "mp4" },
+          { height: 360, label: "360p Data Saver", hasAudio: true, ext: "mp4" },
+        ],
+      };
     }
   });
 }

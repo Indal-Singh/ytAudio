@@ -28,16 +28,68 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
   const [downloadType, setDownloadType] = useState<"audio" | "video">("audio");
   const [audioBitrate, setAudioBitrate] = useState<string>("320");
   const [videoQuality, setVideoQuality] = useState<string>("720");
+  const [videoAction, setVideoAction] = useState<"download" | "open">("download");
+  const [availableQualities, setAvailableQualities] = useState<Array<{
+    height: number;
+    label: string;
+    fps?: number;
+    hasAudio: boolean;
+    ext: string;
+  }>>([]);
+  const [isLoadingQualities, setIsLoadingQualities] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [progressLabel, setProgressLabel] = useState("");
+  const [progressPct, setProgressPct] = useState<number>(0);
+  const [currentStage, setCurrentStage] = useState<"idle" | "downloading" | "converting" | "ready">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [videoDownloadUrl, setVideoDownloadUrl] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Fetch real available video qualities when modal opens or track changes
   useEffect(() => {
+    if (!isOpen || !track?.id) return;
+
+    let isMounted = true;
+    setIsLoadingQualities(true);
+
+    fetch(`/api/download?type=formats&id=${encodeURIComponent(track.id)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        if (data?.success && Array.isArray(data.qualities) && data.qualities.length > 0) {
+          setAvailableQualities(data.qualities);
+          // Default to highest quality available
+          const bestDefault = data.qualities[0]?.height || 1080;
+          setVideoQuality(String(bestDefault));
+        } else {
+          // Fallback standard options
+          setAvailableQualities([
+            { height: 1080, label: "1080p Full HD", hasAudio: true, ext: "mp4" },
+            { height: 720, label: "720p HD", hasAudio: true, ext: "mp4" },
+            { height: 480, label: "480p Standard", hasAudio: true, ext: "mp4" },
+            { height: 360, label: "360p Data Saver", hasAudio: true, ext: "mp4" },
+          ]);
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not query available video formats:", err);
+        if (!isMounted) return;
+        setAvailableQualities([
+          { height: 1080, label: "1080p Full HD", hasAudio: true, ext: "mp4" },
+          { height: 720, label: "720p HD", hasAudio: true, ext: "mp4" },
+          { height: 480, label: "480p Standard", hasAudio: true, ext: "mp4" },
+          { height: 360, label: "360p Data Saver", hasAudio: true, ext: "mp4" },
+        ]);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingQualities(false);
+      });
+
     return () => {
+      isMounted = false;
       abortRef.current?.abort();
     };
-  }, []);
+  }, [isOpen, track?.id]);
 
   if (!isOpen || !track) return null;
 
@@ -46,6 +98,8 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
     abortRef.current = null;
     setDownloading(false);
     setProgressLabel("");
+    setProgressPct(0);
+    setCurrentStage("idle");
   };
 
   const handleClose = () => {
@@ -56,37 +110,112 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
   const handleStartDownload = async () => {
     setDownloading(true);
     setError(null);
+    setVideoDownloadUrl(null);
+    setProgressPct(0);
+    setCurrentStage("idle");
 
-    // VIDEO → resolve direct URL and open in a new tab
+    // ── VIDEO DOWNLOAD: Stream progressive status (downloading → converting → ready) ──
     if (downloadType === "video") {
-      setProgressLabel("Resolving video link…");
+      setCurrentStage("downloading");
+      setProgressLabel(`Preparing ${videoQuality}p stream…`);
+
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
         const params = new URLSearchParams({
           id: track.id,
           type: "video",
+          action: "start",
           quality: videoQuality,
           title: track.title || "",
         });
-        const res = await fetch(`/api/download?${params.toString()}`);
-        const data = await res.json();
-        if (!data?.url) {
-          throw new Error(data?.error || "Could not get video URL");
+
+        const res = await fetch(`/api/download?${params.toString()}`, {
+          signal: controller.signal,
+        });
+
+        if (!res.ok || !res.body) {
+          throw new Error("Failed to start video conversion.");
         }
-        window.open(data.url, "_blank", "noopener,noreferrer");
-        setProgressLabel(data.fallback ? "Opened YouTube page" : "Opened in new tab");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || "";
+
+          for (const block of lines) {
+            const trimmed = block.trim();
+            if (!trimmed.startsWith("data:")) continue;
+            const jsonStr = trimmed.replace(/^data:\s*/, "");
+            try {
+              const data = JSON.parse(jsonStr);
+              if (data.stage === "downloading" || data.stage === "downloading_audio") {
+                setCurrentStage("downloading");
+                setProgressLabel(data.message || "Downloading streams…");
+                if (typeof data.progress === "number") setProgressPct(data.progress);
+              } else if (data.stage === "converting") {
+                setCurrentStage("converting");
+                setProgressLabel(data.message || "Converting & muxing MP4…");
+                setProgressPct(92);
+              } else if (data.stage === "ready") {
+                setCurrentStage("ready");
+                setProgressLabel(data.message || "Video ready!");
+                setProgressPct(100);
+                setVideoDownloadUrl(data.downloadUrl);
+
+                // Auto-trigger the file download from server
+                const a = document.createElement("a");
+                a.href = data.downloadUrl;
+                a.download = `${(track.title || "video").replace(/[^\w\s.-]/gi, "_").slice(0, 80)}_${videoQuality}p.mp4`;
+                document.body.appendChild(a);
+                a.click();
+                if (a.parentNode) {
+                  a.parentNode.removeChild(a);
+                }
+
+                setDownloading(false);
+                abortRef.current = null;
+                return;
+              } else if (data.stage === "error") {
+                throw new Error(data.message || "Video processing failed");
+              }
+            } catch (parseErr) {
+              if (parseErr instanceof Error && parseErr.message !== "Unexpected end of JSON input") {
+                console.error("SSE parse error:", parseErr);
+              }
+            }
+          }
+        }
+
         setDownloading(false);
-        setTimeout(() => onClose(), 700);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Failed to open video";
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setProgressLabel("Cancelled");
+          setDownloading(false);
+          setCurrentStage("idle");
+          return;
+        }
+        const msg = err instanceof Error ? err.message : "Failed to process video";
         setError(msg);
         setDownloading(false);
         setProgressLabel("");
+        setCurrentStage("idle");
       }
       return;
     }
 
-    // AUDIO → ffmpeg-converted MP3 download
-    setProgressLabel("Preparing MP3…");
+    // ── AUDIO: ffmpeg-converted MP3 download ──
+    setCurrentStage("converting");
+    setProgressLabel("Converting & streaming MP3…");
+    setProgressPct(20);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -118,7 +247,10 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
         if (value) {
           chunks.push(value);
           received += value.length;
-          setProgressLabel(`Downloading MP3… ${formatBytes(received)}`);
+          // Approximate audio file size ~ 8-12 MB for 320kbps
+          const approxPct = Math.min(95, Math.round((received / (9 * 1024 * 1024)) * 100));
+          setProgressPct(approxPct);
+          setProgressLabel(`Streaming MP3… ${formatBytes(received)}`);
         }
       }
 
@@ -133,7 +265,9 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
       a.download = `${(track.title || "download").replace(/[^\w\s.-]/gi, "_").slice(0, 80)}.mp3`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      if (a.parentNode) {
+        a.parentNode.removeChild(a);
+      }
       URL.revokeObjectURL(objectUrl);
 
       setProgressLabel(`Done · ${formatBytes(received)}`);
@@ -238,38 +372,88 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
 
           {downloadType === "video" && (
             <div className="quality-section">
-              <label className="quality-label">Preferred quality (best match):</label>
+              <div className="quality-header-row">
+                <label className="quality-label">Available Video Qualities:</label>
+                {isLoadingQualities && (
+                  <span className="quality-loading-badge">
+                    <Loader2 size={12} className="spin" />
+                    <span>Detecting qualities…</span>
+                  </span>
+                )}
+              </div>
+
               <div className="quality-grid">
-                {qualities.map((q) => (
+                {availableQualities.map((q) => (
                   <button
-                    key={q.value}
-                    className={`quality-chip ${videoQuality === q.value ? "quality-active" : ""}`}
-                    onClick={() => setVideoQuality(q.value)}
+                    key={q.height}
+                    className={`quality-chip ${videoQuality === String(q.height) ? "quality-active" : ""}`}
+                    onClick={() => setVideoQuality(String(q.height))}
                     disabled={downloading}
                   >
-                    <span>{q.label}</span>
-                    {videoQuality === q.value && <Check size={14} color="#00f0ff" />}
+                    <span className="chip-label">{q.label}</span>
+                    {videoQuality === String(q.height) && <Check size={14} color="#00f0ff" />}
                   </button>
                 ))}
               </div>
-              <p className="video-hint">
-                Video opens as a direct stream link in a new tab (browser may play or download it).
-              </p>
+
+
             </div>
           )}
 
           {error && <p className="download-error">{error}</p>}
-          {downloading && progressLabel && (
-            <div className="download-progress-row">
-              <Loader2 size={14} className="spin" />
-              <span>{progressLabel}</span>
+
+          {downloading && (
+            <div className="progress-card">
+              <div className="progress-top-row">
+                <div className="progress-stage-badge">
+                  <span className={`stage-dot ${currentStage === "converting" ? "dot-convert" : ""}`} />
+                  <span className="stage-title">
+                    {currentStage === "converting"
+                      ? "Converting & Muxing"
+                      : currentStage === "downloading"
+                      ? "Downloading Streams"
+                      : "Preparing"}
+                  </span>
+                </div>
+                {progressPct > 0 && (
+                  <span className="progress-pct-val">{progressPct}%</span>
+                )}
+              </div>
+
+              <div className="progress-bar-track">
+                <div
+                  className={`progress-bar-fill ${currentStage === "converting" ? "fill-convert" : ""}`}
+                  style={{ width: `${Math.max(progressPct, 8)}%` }}
+                />
+              </div>
+
+              <div className="progress-label-row">
+                <Loader2 size={13} className="spin" />
+                <span className="progress-status-text">{progressLabel}</span>
+              </div>
+            </div>
+          )}
+
+          {/* If video direct link is ready, provide prominent direct Download Button */}
+          {videoDownloadUrl && downloadType === "video" && (
+            <div className="direct-download-box">
+              <a
+                href={videoDownloadUrl}
+                download={`${(track.title || "video").replace(/[^\w\s.-]/gi, "_").slice(0, 80)}_${videoQuality}p.mp4`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="direct-link-btn"
+              >
+                <Download size={16} />
+                <span>Click here if download didn&apos;t start ({videoQuality}p MP4)</span>
+              </a>
             </div>
           )}
 
           <div className="download-actions">
             {downloading ? (
               <button className="download-cancel-btn" onClick={handleCancel}>
-                Cancel download
+                Cancel
               </button>
             ) : (
               <button className="download-action-btn" onClick={handleStartDownload}>
@@ -277,7 +461,7 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
                 <span>
                   {downloadType === "audio"
                     ? `Download MP3 (${audioBitrate} kbps)`
-                    : `Open ${videoQuality}p video in new tab`}
+                    : `Download ${videoQuality}p Video`}
                 </span>
               </button>
             )}
@@ -286,7 +470,7 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
 
         <div className="download-footer">
           <Sparkles size={14} color="#00f0ff" />
-          <span>High-quality audio downloads · Video opens in a new tab</span>
+          <span>Select any available resolution (1080p, 720p, 480p, 360p) with clear audio</span>
         </div>
       </div>
 
@@ -475,6 +659,21 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
           gap: 8px;
         }
 
+        .quality-header-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .quality-loading-badge {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 0.72rem;
+          color: var(--accent-cyan);
+          opacity: 0.85;
+        }
+
         .quality-chip {
           display: flex;
           align-items: center;
@@ -502,10 +701,37 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
           border-color: var(--accent-cyan);
           color: #ffffff;
           background: rgba(0, 240, 255, 0.08);
+          box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        .direct-download-box {
+          margin-top: 6px;
+        }
+
+        .direct-link-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 9px 14px;
+          background: rgba(0, 240, 255, 0.12);
+          border: 1px solid var(--accent-cyan);
+          border-radius: var(--radius-sm);
+          color: var(--accent-cyan);
+          font-size: 0.8rem;
+          font-weight: 600;
+          text-decoration: none;
+          transition: all 0.2s ease;
+        }
+
+        .direct-link-btn:hover {
+          background: var(--accent-cyan);
+          color: #000000;
+          box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
         }
 
         .video-hint {
-          font-size: 0.75rem;
+          font-size: 0.74rem;
           color: var(--text-muted);
           line-height: 1.4;
           margin-top: 4px;
@@ -516,16 +742,95 @@ export function DownloadModal({ track, isOpen, onClose }: DownloadModalProps) {
           color: #ff4d6d;
         }
 
-        .download-progress-row {
+        .progress-card {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid rgba(0, 240, 255, 0.2);
+          border-radius: var(--radius-md);
+          padding: 12px 14px;
+        }
+
+        .progress-top-row {
           display: flex;
           align-items: center;
-          gap: 8px;
-          font-size: 0.82rem;
+          justify-content: space-between;
+        }
+
+        .progress-stage-badge {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .stage-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--accent-cyan);
+          box-shadow: 0 0 8px var(--accent-cyan);
+          animation: pulseDot 1.2s infinite ease-in-out;
+        }
+
+        .stage-dot.dot-convert {
+          background: #ffaa00;
+          box-shadow: 0 0 8px #ffaa00;
+        }
+
+        @keyframes pulseDot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .stage-title {
+          font-size: 0.76rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--text-primary);
+        }
+
+        .progress-pct-val {
+          font-size: 0.8rem;
+          font-weight: 700;
+          font-family: var(--font-mono);
           color: var(--accent-cyan);
         }
 
-        .download-progress-row :global(.spin) {
+        .progress-bar-track {
+          width: 100%;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 999px;
+          overflow: hidden;
+        }
+
+        .progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #00f0ff, #0070f3);
+          border-radius: 999px;
+          transition: width 0.3s ease;
+          box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+
+        .progress-bar-fill.fill-convert {
+          background: linear-gradient(90deg, #ffaa00, #ff0033);
+          box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+        }
+
+        .progress-label-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.78rem;
+          color: var(--text-secondary);
+        }
+
+        .progress-label-row :global(.spin) {
           animation: spin 0.8s linear infinite;
+          color: var(--accent-cyan);
+          flex-shrink: 0;
         }
 
         @keyframes spin {

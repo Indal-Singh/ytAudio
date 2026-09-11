@@ -306,30 +306,12 @@ export default function Home() {
   }, [fetchVideos]);
 
   // Mobile sidebar back button integration
-  const isMobileSidebarPopstateRef = React.useRef(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || window.innerWidth > 768) return;
-
-    if (!sidebarCollapsed) {
-      window.history.pushState({ isModal: true, modal: "sidebar" }, "");
-    } else {
-      if (!isMobileSidebarPopstateRef.current && window.history.state?.modal === "sidebar") {
-        window.history.back();
-      }
-    }
-  }, [sidebarCollapsed]);
-
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleSidebarPop = () => {
       if (window.innerWidth <= 768 && !sidebarCollapsed) {
-        isMobileSidebarPopstateRef.current = true;
         setSidebarCollapsed(true);
-        setTimeout(() => {
-          isMobileSidebarPopstateRef.current = false;
-        }, 80);
       }
     };
 

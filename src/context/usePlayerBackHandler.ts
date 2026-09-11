@@ -13,6 +13,8 @@ interface ModalStates {
   setShowVideoModal: (v: boolean | ((prev: boolean) => boolean)) => void;
   showDownloadModal: boolean;
   setShowDownloadModal: (v: boolean | ((prev: boolean) => boolean)) => void;
+  showFullscreenPlayer: boolean;
+  setShowFullscreenPlayer: (v: boolean | ((prev: boolean) => boolean)) => void;
 }
 
 /**
@@ -31,6 +33,8 @@ export function usePlayerBackHandler(modals: ModalStates) {
     setShowVideoModal,
     showDownloadModal,
     setShowDownloadModal,
+    showFullscreenPlayer,
+    setShowFullscreenPlayer,
   } = modals;
 
   const activeModalRef = useRef<string | null>(null);
@@ -76,6 +80,10 @@ export function usePlayerBackHandler(modals: ModalStates) {
   }, [showDownloadModal]);
 
   useEffect(() => {
+    syncModal("fullscreen", showFullscreenPlayer);
+  }, [showFullscreenPlayer]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handlePopState = (e: PopStateEvent) => {
@@ -89,6 +97,7 @@ export function usePlayerBackHandler(modals: ModalStates) {
         else if (current === "queue") setShowQueueDrawer(false);
         else if (current === "video") setShowVideoModal(false);
         else if (current === "download") setShowDownloadModal(false);
+        else if (current === "fullscreen") setShowFullscreenPlayer(false);
 
         setTimeout(() => {
           isPopstateRef.current = false;
@@ -104,5 +113,6 @@ export function usePlayerBackHandler(modals: ModalStates) {
     setShowQueueDrawer,
     setShowVideoModal,
     setShowDownloadModal,
+    setShowFullscreenPlayer,
   ]);
 }

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import {
+  ChevronUp,
   Play,
   Pause,
   SkipBack,
@@ -21,6 +22,7 @@ import {
   Download,
 } from "lucide-react";
 import { usePlayer, usePlayerTime } from "@/context/PlayerContext";
+import { MobileFullscreenPlayer } from "./MobileFullscreenPlayer";
 import "./PlayerBar.css";
 
 export function PlayerBar() {
@@ -39,6 +41,7 @@ export function PlayerBar() {
     lastSession,
     resumeLastSession,
     showVisualizer,
+    setShowFullscreenPlayer,
     togglePlay,
     seek,
     skipBy,
@@ -158,7 +161,11 @@ export function PlayerBar() {
 
       <div className="player-content">
         {/* Left Section: Track Info */}
-        <div className="track-info-section">
+        <div
+          className="track-info-section"
+          onClick={() => setShowFullscreenPlayer(true)}
+          title="Tap to open fullscreen player"
+        >
           <div className={`mini-thumbnail-box ${isPlaying ? "thumbnail-playing" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -184,6 +191,7 @@ export function PlayerBar() {
             rel="noreferrer"
             className="yt-link-btn"
             title="Open on YouTube"
+            onClick={(e) => e.stopPropagation()}
           >
             <ExternalLink size={14} />
           </a>
@@ -367,9 +375,24 @@ export function PlayerBar() {
             <ListMusic size={19} />
             {upcomingCount > 0 && <span className="queue-pill">{upcomingCount}</span>}
           </button>
+
+          {/* Mobile Fullscreen Expand Button */}
+          <button
+            className="action-btn mobile-expand-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowFullscreenPlayer(true);
+            }}
+            title="Expand Fullscreen Player"
+            aria-label="Expand Fullscreen Player"
+          >
+            <ChevronUp size={22} />
+          </button>
         </div>
       </div>
 
+      {/* Fullscreen Player for Mobile view with rich controls */}
+      <MobileFullscreenPlayer />
     </footer>
   );
 }

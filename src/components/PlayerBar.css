@@ -317,6 +317,10 @@
   background: rgba(255, 0, 51, 0.15);
 }
 
+.mobile-expand-btn {
+  display: none;
+}
+
 .video-mode-btn {
   display: flex;
   align-items: center;
@@ -426,113 +430,136 @@
 
 @media (max-width: 768px) {
   .player-content {
-    padding: 0 10px;
-    gap: 6px;
+    padding: 0 12px;
+    gap: 10px;
     align-items: center;
+    justify-content: space-between;
   }
 
   .track-info-section {
     min-width: 0;
     flex: 1 1 auto;
-    max-width: none;
+    max-width: calc(100vw - 170px);
     gap: 10px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+  }
+
+  .track-info-section:active {
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .track-meta {
     min-width: 0;
+    overflow: hidden;
   }
 
   .track-title {
-    font-size: 0.88rem;
+    font-size: 0.86rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .track-uploader {
     font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .mini-thumbnail-box {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     border-radius: 8px;
+    flex-shrink: 0;
   }
 
   .yt-link-btn {
     display: none;
   }
 
-  .controls-section {
+  /* Center Controls: Limited strictly to Play/Pause and Next */
+  .player-controls-section {
     flex: 0 0 auto;
-    gap: 4px;
+    gap: 0;
   }
 
   .controls-row {
-    gap: 2px;
+    gap: 4px;
   }
 
-  .ctrl-btn {
+  /* Hide Shuffle, -10s, Prev, +10s, Repeat from footer bar on mobile */
+  .controls-row > .ctrl-btn:nth-child(1), /* Shuffle */
+  .controls-row > .ctrl-btn:nth-child(2), /* -10s */
+  .controls-row > .ctrl-btn:nth-child(3), /* Prev */
+  .controls-row > .ctrl-btn:nth-child(6), /* +10s */
+  .controls-row > .ctrl-btn:nth-child(7)  /* Repeat */ {
+    display: none;
+  }
+
+  /* Next track button */
+  .controls-row > .ctrl-btn:nth-child(5) {
+    display: flex;
     padding: 6px;
     min-width: 36px;
     min-height: 36px;
   }
 
   .play-main-btn {
-    width: 46px;
-    height: 46px;
-  }
-
-  .volume-group {
-    display: none;
-  }
-
-  .speed-selector-wrapper {
-    display: none;
-  }
-
-  .player-actions-section {
-    min-width: auto;
-    gap: 4px;
-    flex: 0 0 auto;
-  }
-
-  .video-mode-btn {
-    display: none;
+    width: 44px;
+    height: 44px;
   }
 
   .time-display {
     display: none;
   }
 
-  .action-btn {
-    padding: 8px;
-    min-width: 40px;
-    min-height: 40px;
-  }
-}
-
-@media (max-width: 520px) {
-  .track-info-section {
-    max-width: 42vw;
+  /* Right Section: Only show the Fullscreen Expand Button */
+  .player-actions-section {
+    min-width: auto;
+    gap: 4px;
+    flex: 0 0 auto;
+    justify-content: flex-end;
   }
 
-  /* Hide non-essential buttons on narrow mobile screens */
-  .ctrl-btn:nth-child(1), /* Shuffle */
-  .ctrl-btn:nth-child(3), /* Prev */
-  .ctrl-btn:nth-child(7)  /* Repeat */ {
+  /* Hide secondary desktop actions from footer player on mobile */
+  .video-mode-btn,
+  .action-btn:not(.mobile-expand-btn),
+  .speed-selector-wrapper,
+  .volume-group {
     display: none;
   }
 
-  .play-main-btn {
-    width: 44px;
-    height: 44px;
+  .mobile-expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    color: var(--accent-cyan);
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.22);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .mobile-expand-btn:active {
+    transform: scale(1.1);
+    background: rgba(0, 240, 255, 0.22);
   }
 }
 
 @media (max-width: 380px) {
   .track-info-section {
-    max-width: 36vw;
+    max-width: calc(100vw - 145px);
   }
-  .ctrl-btn:nth-child(2), /* -10s */
-  .ctrl-btn:nth-child(6)  /* +10s */ {
+
+  .controls-row > .ctrl-btn:nth-child(5) {
+    /* On extremely small screens, keep Play and Expand */
     display: none;
   }
 }

@@ -134,9 +134,6 @@ export function Sidebar({
             className="nav-item"
             style={{ textDecoration: "none" }}
             title="Why YTaudio?"
-            onClick={() => {
-              if (onCloseMobile) onCloseMobile();
-            }}
           >
             <div className="nav-icon-box">
               <Info size={20} />
@@ -149,9 +146,6 @@ export function Sidebar({
             className="nav-item"
             style={{ textDecoration: "none" }}
             title="All Features"
-            onClick={() => {
-              if (onCloseMobile) onCloseMobile();
-            }}
           >
             <div className="nav-icon-box">
               <Zap size={20} />
@@ -164,9 +158,6 @@ export function Sidebar({
             className="nav-item"
             style={{ textDecoration: "none" }}
             title="Version Changelog & Release Notes"
-            onClick={() => {
-              if (onCloseMobile) onCloseMobile();
-            }}
           >
             <div className="nav-icon-box">
               <GitCommit size={20} />

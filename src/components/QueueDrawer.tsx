@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { X, Trash2, Play, ListMusic, RotateCcw, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Trash2, Play, Pause, ListMusic, RotateCcw, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import "./QueueDrawer.css";
 
@@ -22,6 +22,8 @@ export function QueueDrawer() {
     queue,
     queueIndex,
     currentTrack,
+    isPlaying,
+    togglePlay,
     showQueueDrawer,
     setShowQueueDrawer,
     isAutoplay,
@@ -301,11 +303,16 @@ export function QueueDrawer() {
 
                       <div className="item-actions">
                         <button
-                          className="item-play-btn"
+                          className={`item-play-btn ${isCurrent && isPlaying ? "item-playing" : ""}`}
                           onClick={(e) => { e.stopPropagation(); playFromQueue(idx); }}
-                          title={isCurrent ? "Playing now" : "Play this track"}
+                          title={isCurrent ? (isPlaying ? "Pause" : "Resume") : "Play this track"}
+                          aria-label={isCurrent ? (isPlaying ? "Pause" : "Resume") : "Play track"}
                         >
-                          <Play size={14} color="#ffffff" style={{ marginLeft: "2px" }} />
+                          {isCurrent && isPlaying ? (
+                            <Pause size={14} color="#ffffff" />
+                          ) : (
+                            <Play size={14} color="#ffffff" style={{ marginLeft: "2px" }} />
+                          )}
                         </button>
                         <button
                           className="item-del-btn"

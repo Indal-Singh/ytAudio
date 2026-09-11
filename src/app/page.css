@@ -492,16 +492,17 @@
   }
 }
 
-@media (max-width: 540px) {
+@media (max-width: 640px) {
   .feed-container {
-    padding: 10px;
-    padding-bottom: calc(var(--player-height) + 28px);
+    padding: 10px 8px;
+    padding-bottom: calc(var(--player-height) + 40px);
   }
   .video-grid {
     grid-template-columns: 1fr;
-    gap: 4px;
+    gap: 8px;
   }
   .for-you-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 }

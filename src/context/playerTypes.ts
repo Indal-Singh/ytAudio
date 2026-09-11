@@ -56,6 +56,7 @@ export interface PlayerContextType {
   showQueueDrawer: boolean;
   showVideoModal: boolean;
   showDownloadModal: boolean;
+  showFullscreenPlayer: boolean;
   downloadTrack: Track | null;
   error: string | null;
   analyser: AnalyserNode | null;
@@ -93,6 +94,7 @@ export interface PlayerContextType {
   setShowQueueDrawer: (val: boolean | ((prev: boolean) => boolean)) => void;
   setShowVideoModal: (val: boolean) => void;
   setShowDownloadModal: (val: boolean) => void;
+  setShowFullscreenPlayer: (val: boolean | ((prev: boolean) => boolean)) => void;
   openDownloadModal: (track?: Track) => void;
   playDirectUrl: (urlOrId: string) => Promise<void>;
   isFindingRelated: boolean;

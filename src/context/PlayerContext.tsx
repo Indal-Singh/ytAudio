@@ -171,6 +171,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [showQueueDrawer, setShowQueueDrawer] = useState<boolean>(false);
   const [showVideoModal, setShowVideoModal] = useState<boolean>(false);
   const [showDownloadModal, setShowDownloadModal] = useState<boolean>(false);
+  const [showFullscreenPlayer, setShowFullscreenPlayer] = useState<boolean>(false);
   const [downloadTrack, setDownloadTrack] = useState<Track | null>(null);
 
   // Hardware/Browser Back button interception for modals & drawers
@@ -185,6 +186,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setShowVideoModal,
     showDownloadModal,
     setShowDownloadModal,
+    showFullscreenPlayer,
+    setShowFullscreenPlayer,
   });
 
   const openDownloadModal = useCallback((track?: Track) => {
@@ -620,14 +623,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [initWebAudio, playbackRate, isMuted, volume, saveSessionToStorage, notifyTime, prefetchTrackStream, fetchRelatedSongs]
   );
 
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current || !currentTrack) return;
+    initWebAudio();
+    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+      audioContextRef.current.resume();
+    }
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play().catch((e) => console.error("Resume error:", e));
+    }
+  }, [isPlaying, currentTrack, initWebAudio]);
+
   const playFromQueue = useCallback(
     async (index: number) => {
       const list = queueRef.current;
       if (index < 0 || index >= list.length) return;
       const target = list[index];
+
+      // If already active on this track in the queue, toggle pause/play without resetting position
+      if (currentTrackRef.current && target.id === currentTrackRef.current.id && index === queueIndexRef.current) {
+        togglePlay();
+        return;
+      }
+
       await playTrack(target, 0, { fromQueue: true });
     },
-    [playTrack]
+    [playTrack, togglePlay]
   );
 
   const restoreRewindPlaylist = useCallback(
@@ -647,9 +670,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       } catch {
         // Ignore
       }
+
+      // If already playing this track, don't restart from 0
+      if (currentTrackRef.current?.id === targetTracks[validIndex].id) {
+        togglePlay();
+        return;
+      }
+
       await playTrack(targetTracks[validIndex], 0, { fromQueue: true });
     },
-    [playTrack]
+    [playTrack, togglePlay]
   );
 
   const removeRewindPlaylist = useCallback((playlistId: string) => {
@@ -672,21 +702,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // Ignore
     }
   }, []);
-
-
-
-  const togglePlay = useCallback(() => {
-    if (!audioRef.current || !currentTrack) return;
-    initWebAudio();
-    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play().catch((e) => console.error("Resume error:", e));
-    }
-  }, [isPlaying, currentTrack, initWebAudio]);
 
   const pauseAudio = useCallback(() => {
     if (audioRef.current) {
@@ -1097,6 +1112,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             showQueueDrawer,
             showVideoModal,
             showDownloadModal,
+            showFullscreenPlayer,
             downloadTrack,
             error,
             analyser,
@@ -1132,6 +1148,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             setShowQueueDrawer,
             setShowVideoModal,
             setShowDownloadModal,
+            setShowFullscreenPlayer,
             openDownloadModal,
             playDirectUrl,
             isFindingRelated,

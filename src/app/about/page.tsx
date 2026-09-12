@@ -16,6 +16,7 @@ import {
   Layers,
   Sparkles,
 } from "lucide-react";
+import { SeoNavbar } from "@/components/SeoNavbar";
 import "./about.css";
 
 export const metadata: Metadata = {
@@ -66,28 +67,8 @@ export default function AboutPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Header Bar */}
-      <header className="seo-nav">
-        <Link href="/" className="seo-nav-brand">
-          <div className="seo-nav-logo">
-            <Music size={20} color="#ffffff" />
-          </div>
-          <span className="seo-nav-title">YTaudio</span>
-        </Link>
-
-        <nav className="seo-nav-links">
-          <Link href="/about" className="seo-nav-link active">
-            Why YTaudio?
-          </Link>
-          <Link href="/features" className="seo-nav-link">
-            Features
-          </Link>
-          <Link href="/" className="seo-play-now-btn">
-            <Play size={14} fill="#ffffff" />
-            <span>Launch Player</span>
-          </Link>
-        </nav>
-      </header>
+      {/* Responsive Top Navigation */}
+      <SeoNavbar activePage="about" />
 
       {/* Main Content */}
       <main className="seo-container">
@@ -313,25 +294,12 @@ export default function AboutPage() {
           <p className="cta-desc">
             Search your favorite songs, paste any YouTube link, or explore curated playlists with instant playback.
           </p>
-          <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/" className="seo-play-now-btn" style={{ padding: "12px 28px", fontSize: "1rem" }}>
+          <div className="cta-btn-group">
+            <Link href="/" className="cta-primary-btn">
               <Play size={18} fill="#ffffff" />
               <span>Start Listening Now</span>
             </Link>
-            <Link
-              href="/features"
-              className="seo-nav-link"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "12px 24px",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(255,255,255,0.05)",
-                color: "#ffffff",
-              }}
-            >
+            <Link href="/features" className="cta-secondary-btn">
               <span>Explore All Features</span>
               <ArrowRight size={16} />
             </Link>
@@ -342,10 +310,11 @@ export default function AboutPage() {
       {/* Footer */}
       <footer className="seo-footer">
         <p>© {new Date().getFullYear()} YTaudio — Built for the love of music & audio clarity.</p>
-        <div style={{ marginTop: "12px", display: "flex", gap: "20px", justifyContent: "center" }}>
-          <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Player</Link>
-          <Link href="/about" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Why YTaudio?</Link>
-          <Link href="/features" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Features</Link>
+        <div className="seo-footer-links">
+          <Link href="/" className="seo-footer-link">Player</Link>
+          <Link href="/about" className="seo-footer-link">Why YTaudio?</Link>
+          <Link href="/features" className="seo-footer-link">Features</Link>
+          <Link href="/changelog" className="seo-footer-link">Changelog</Link>
         </div>
       </footer>
     </div>

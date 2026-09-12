@@ -416,49 +416,112 @@
 @media (max-width: 768px) {
   .navbar-container {
     padding: 0 10px;
-    gap: 6px;
+    padding-left: calc(10px + env(safe-area-inset-left, 0px));
+    padding-right: calc(10px + env(safe-area-inset-right, 0px));
+    gap: 8px;
+    height: 60px;
+  }
+
+  .navbar-brand-section {
+    gap: 8px;
+  }
+
+  .brand-icon-bg {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+
+  .brand-title {
+    font-size: 1.12rem;
+  }
+
+  .brand-badge {
+    display: none;
   }
 
   .desktop-search-outer {
     display: none;
   }
 
+  .navbar-actions {
+    gap: 4px;
+  }
+
   .mobile-search-trigger {
     display: flex;
-    min-width: 40px;
-    min-height: 40px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
   }
 
-  .mobile-search-bar {
-    padding: 8px 10px;
-    padding-top: calc(8px + env(safe-area-inset-top, 0px));
-  }
-
-  .mobile-search-form {
-    padding: 4px 8px 4px 14px;
-    min-height: 44px;
-  }
-
-  .mobile-search-input {
-    font-size: 16px; /* prevents iOS zoom on focus */
+  .action-pill-btn {
+    padding: 8px;
+    border-radius: 50%;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+    justify-content: center;
   }
 
   .btn-label {
     display: none;
   }
 
-  .action-pill-btn {
-    padding: 8px;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    justify-content: center;
+  .icon-btn {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  .mobile-search-bar {
+    padding: 8px 10px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    gap: 6px;
+  }
+
+  .mobile-search-form {
+    padding: 4px 8px 4px 12px;
+    min-height: 42px;
+  }
+
+  .mobile-search-input {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  .suggestions-dropdown {
+    max-height: min(340px, calc(100vh - 130px));
+  }
+
+  .suggestion-row {
+    padding: 10px 14px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  .navbar-container {
+    padding: 0 6px;
+    gap: 4px;
+  }
+
+  .navbar-actions {
+    gap: 2px;
+  }
+
+  .icon-btn,
+  .action-pill-btn,
+  .mobile-search-trigger {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   .brand-title {
-    font-size: 1.15rem;
-  }
-  .brand-badge {
-    display: none;
+    font-size: 1.05rem;
   }
 }

@@ -5,6 +5,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.2.0] - 2026-09-12
+
+### 🚀 Added
+- **PWA Screen-Off Continuous Autoplay**:
+  - Pre-buffers upcoming playlist/feed items directly into audio memory queue upon track selection.
+  - Synchronous `ended` playback transition complying with iOS Safari and Android Chrome background media autoplay policies.
+  - Seamless loop/wrap-around queue protection ensuring uninterrupted background playback during deep device sleep.
+- **Unified `SeoNavbar` Component**:
+  - Reusable responsive navigation header for `/about`, `/features`, and `/changelog`.
+  - Glassmorphic backdrop blur, interactive active link indicators, and one-tap player launch button.
+  - Full-screen animated mobile drawer with Android hardware back-button listener, safe-area top inset padding, and body scroll lock.
+- **Open Source Licensing & Metadata**:
+  - Added official permissive open-source MIT License (`LICENSE`).
+  - Enhanced GitHub repository metadata, tags, and documentation.
+
+### 🎨 Improved & Fixed
+- **Mobile Feed & Search Layout**:
+  - Fixed mobile listing Y-axis overflow caused by active card overlay expansion and unconstrained viewport heights.
+  - Pinned application shell to dynamic viewport height (`100dvh`) eliminating double scrollbars and layout shifts.
+  - Clamped mobile card title heights and hidden overflowing overlay text on mobile thumbnails.
+- **Responsive Landing Pages**:
+  - Fixed timeline dot alignment on mobile `/changelog` with dynamic CSS offset calculations.
+  - Added horizontal swipe indicator badge and smooth touch scrolling for comparison matrix on `/features`.
+  - Fluid typography (`clamp`) and touch-calibrated grids across `/about`.
+
+---
+
 ## [2.1.0] - 2026-09-11
 
 ### 🚀 Added

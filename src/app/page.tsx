@@ -497,7 +497,7 @@ export default function Home() {
                 </div>
                 <div className="video-grid for-you-grid">
                   {recommended.slice(0, 8).map((item) => (
-                    <AudioCard key={`rec-${item.id}`} video={item} />
+                    <AudioCard key={`rec-${item.id}`} video={item} playlist={recommended} />
                   ))}
                 </div>
               </section>
@@ -554,7 +554,7 @@ export default function Home() {
                 {recommended.length > 0 ? (
                   <div className="video-grid">
                     {recommended.map((item) => (
-                      <AudioCard key={item.id} video={item} />
+                      <AudioCard key={item.id} video={item} playlist={recommended} />
                     ))}
                   </div>
                 ) : (
@@ -577,7 +577,7 @@ export default function Home() {
                 )}
                 <div className="video-grid">
                   {videos.map((item) => (
-                    <AudioCard key={item.id} video={item} />
+                    <AudioCard key={item.id} video={item} playlist={videos} />
                   ))}
                 </div>
 

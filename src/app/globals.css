@@ -43,7 +43,7 @@
 
 @media (max-width: 768px) {
   :root {
-    --header-height: 56px;
+    --header-height: 60px;
     --player-height: 72px;
   }
 }

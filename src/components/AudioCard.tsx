@@ -17,12 +17,13 @@ interface AudioCardProps {
     view_count?: number;
     url: string;
   };
+  playlist?: any[];
 }
 
 const FALLBACK_THUMB =
   "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80";
 
-export function AudioCard({ video }: AudioCardProps) {
+export function AudioCard({ video, playlist }: AudioCardProps) {
   const { playTrack, togglePlay, addToQueue, openDownloadModal, addToPlayNext } =
     usePlayerActions();
   const { isCurrent, isCardPlaying, isCardLoading } = useTrackCardState(video.id);
@@ -34,7 +35,7 @@ export function AudioCard({ video }: AudioCardProps) {
     if (isCurrent) {
       togglePlay();
     } else {
-      playTrack(video);
+      playTrack(video, 0, playlist ? { surroundingList: playlist } : undefined);
     }
   };
 

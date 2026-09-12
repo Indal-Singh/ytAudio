@@ -1,39 +1,95 @@
-# YTaudio
+# 🎵 YTaudio — Pure YouTube Audio Streamer & Background Player
 
-Audio-first YouTube player — search, queue, stream, and download.
+[![Next.js](https://img.shields.io/badge/Next.js-15%20%2F%2016-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-00f0ff?style=flat-square)](https://web.dev/progressive-web-apps/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](#license)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-yta.indalsingh.dev-ff0033?style=flat-square&logo=google-chrome)](https://yta.indalsingh.dev)
 
-## Setup
+> **Stream YouTube music with your screen locked, save up to 90% mobile data and battery, visualize sound in real time, and download crystal-clear 320kbps MP3s.**
+
+---
+
+## ✨ Key Features
+
+- 📱 **Screen-Off Background Playback**: Integrated with the HTML5 `MediaSession` API. Lock your phone, put it in your pocket, and control music playback from your lock screen or smartwatch.
+- 📶 **90% Mobile Data Savings**: Pure Opus/AAC audio container extraction (only ~3MB–5MB per song instead of 120MB+ for 1080p video frames).
+- 📊 **Real-Time Spectrum Visualizer**: Hardware-accelerated dynamic frequency audio bars powered by the HTML5 Web Audio API.
+- ⬇️ **Offline MP3 / MP4 Downloader**: Download crystal-clear 320kbps MP3 audio or 1080p MP4 video with real-time Server-Sent Events (SSE) progress streaming.
+- 🔗 **Direct YouTube URL Importer**: Paste any YouTube video, Shorts, or youtu.be shortlink to resolve and play instantly.
+- 📑 **Dynamic Queue & Rewind**: Add tracks on the fly, reorder songs, and easily revisit previously played tracks.
+- ⌨️ **Desktop Keyboard Controls**: Space (Play/Pause), Left/Right arrows (Seek 5s), Up/Down arrows (Volume), M (Mute/Unmute).
+- 🎨 **Dark Cyberpunk Glassmorphism UI**: High-fidelity dark aesthetic with responsive layouts across mobile, tablet, and desktop viewports.
+
+---
+
+## 🛠️ Tech Stack
+
+| Component | Technology |
+|---|---|
+| **Framework** | [Next.js](https://nextjs.org/) (App Router, Turbopack) |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) |
+| **Styling** | Modular Vanilla CSS (Glassmorphism & Design Tokens) |
+| **Audio Engine** | Web Audio API & HTML5 `MediaSession` API |
+| **Media Extraction** | `yt-dlp` & `FFmpeg` |
+| **Icons** | [Lucide React](https://lucide.dev/) |
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+- **Node.js**: v20 or higher
+- **yt-dlp**: Installed and accessible in your system PATH
+- **ffmpeg**: Installed and accessible in your system PATH
+
+### 2. Installation & Setup
 
 ```bash
+# Clone the repository
+git clone https://github.com/Indal-Singh/ytAudio.git
+cd ytAudio
+
+# Copy sample environment configuration
 cp .env.example .env
-# edit .env: PORT, YTDLP_PATH, FFMPEG_PATH
+
+# Install dependencies
 npm install
+
+# Start local development server
 npm run dev
 ```
 
-Open `http://localhost:<PORT>` (default **3000**).
+Open `http://localhost:3000` in your browser.
 
-## Environment
+---
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `PORT` | `3000` | App listen port |
-| `HOSTNAME` | _(optional)_ | Bind host, e.g. `0.0.0.0` for Docker |
-| `YTDLP_PATH` | `yt-dlp` | Path to yt-dlp binary (e.g. `/snap/bin/yt-dlp`) |
-| `FFMPEG_PATH` | `ffmpeg` | Path to ffmpeg binary |
+## ⚙️ Environment Variables
 
-Example `.env`:
+Configure `.env` as needed:
 
-```env
-PORT=3000
-YTDLP_PATH=/snap/bin/yt-dlp
-FFMPEG_PATH=/usr/bin/ffmpeg
-```
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` | Web server listening port |
+| `HOSTNAME` | `0.0.0.0` | Bind address (useful for Docker containers) |
+| `NEXT_PUBLIC_SITE_URL` | `https://yta.indalsingh.dev` | Canonical metadata and OpenGraph domain |
+| `YTDLP_PATH` | `yt-dlp` | Absolute path to the `yt-dlp` executable |
+| `FFMPEG_PATH` | `ffmpeg` | Absolute path to the `ffmpeg` executable |
+| `YTDLP_COOKIES_PATH` | _(optional)_ | Path to `cookies.txt` for restricted streams |
+| `YTDLP_COOKIES_BROWSER`| _(optional)_ | Browser profile to extract cookies from (e.g., `chrome`) |
 
-## Docker
+---
+
+## 🐳 Docker Deployment
+
+Run with Docker Compose:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-Compose reads `.env` for `PORT`, `YTDLP_PATH`, and `FFMPEG_PATH`.
+---
+
+## 📄 License
+
+This project is open-source and available under the [MIT License](LICENSE).

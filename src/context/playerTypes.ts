@@ -63,7 +63,7 @@ export interface PlayerContextType {
   playTrack: (
     track: Track,
     startTime?: number,
-    options?: { fromQueue?: boolean }
+    options?: { fromQueue?: boolean; surroundingList?: Track[] }
   ) => Promise<void>;
   playFromQueue: (index: number) => Promise<void>;
   resumeLastSession: () => Promise<void>;
@@ -111,7 +111,7 @@ export type PlayerActions = {
   playTrack: (
     track: Track,
     startTime?: number,
-    options?: { fromQueue?: boolean }
+    options?: { fromQueue?: boolean; surroundingList?: Track[] }
   ) => Promise<void>;
   playFromQueue: (index: number) => Promise<void>;
   togglePlay: () => void;

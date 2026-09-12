@@ -134,6 +134,7 @@ export function Sidebar({
             className="nav-item"
             style={{ textDecoration: "none" }}
             title="Why YTaudio?"
+            onClick={onCloseMobile}
           >
             <div className="nav-icon-box">
               <Info size={20} />
@@ -146,6 +147,7 @@ export function Sidebar({
             className="nav-item"
             style={{ textDecoration: "none" }}
             title="All Features"
+            onClick={onCloseMobile}
           >
             <div className="nav-icon-box">
               <Zap size={20} />
@@ -158,6 +160,7 @@ export function Sidebar({
             className="nav-item"
             style={{ textDecoration: "none" }}
             title="Version Changelog & Release Notes"
+            onClick={onCloseMobile}
           >
             <div className="nav-icon-box">
               <GitCommit size={20} />
@@ -173,10 +176,11 @@ export function Sidebar({
             href="/changelog"
             className="tech-badge"
             style={{ textDecoration: "none" }}
-            title="View v2.1.0 release notes"
+            title="View v2.2.0 release notes"
+            onClick={onCloseMobile}
           >
             <Sparkles size={14} color="#00f0ff" />
-            <span>v2.1.0 • Changelog</span>
+            <span>v2.2.0 • Changelog</span>
           </Link>
         </div>
       </aside>

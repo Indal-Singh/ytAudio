@@ -272,6 +272,19 @@
     border: 1px solid rgba(255, 255, 255, 0.04);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     margin-bottom: 2px;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .audio-card-active {
+    background: rgba(255, 0, 51, 0.08) !important;
+    border: 1px solid rgba(255, 0, 51, 0.38) !important;
+    box-shadow: 0 4px 18px rgba(255, 0, 51, 0.16) !important;
+  }
+
+  .audio-card-active .card-title {
+    color: #ff4d6d !important;
   }
 
   .audio-card:hover {
@@ -289,6 +302,9 @@
     aspect-ratio: 16 / 9;
     border-radius: 8px;
     flex-shrink: 0;
+    overflow: hidden;
+    isolation: isolate;
+    position: relative;
   }
 
   .audio-badge {
@@ -310,6 +326,7 @@
     flex-direction: column;
     justify-content: center;
     gap: 3px;
+    overflow: hidden;
   }
 
   .channel-avatar {
@@ -319,6 +336,7 @@
   .text-content {
     width: 100%;
     min-width: 0;
+    overflow: hidden;
   }
 
   .card-title {
@@ -331,6 +349,7 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    max-height: 2.6em;
   }
 
   .card-uploader {
@@ -376,8 +395,12 @@
   }
 
   .overlay .play-circle {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .overlay .overlay-text {
+    display: none;
   }
 }
 

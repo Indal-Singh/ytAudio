@@ -9,7 +9,9 @@ import {
   CheckCircle2,
   Wrench,
   Zap,
+  ArrowRight,
 } from "lucide-react";
+import { SeoNavbar } from "@/components/SeoNavbar";
 import "../about/about.css";
 import "./changelog.css";
 
@@ -35,9 +37,44 @@ export const metadata: Metadata = {
 export default function ChangelogPage() {
   const releases = [
     {
+      version: "v2.2.0",
+      date: "September 12, 2026",
+      isLatest: true,
+      added: [
+        {
+          title: "PWA Screen-Off Continuous Autoplay",
+          detail: "Pre-buffers feed queues directly into active memory and executes synchronous playback transitions upon track completion, ensuring uninterrupted playback when the device screen is locked.",
+        },
+        {
+          title: "Unified Responsive SeoNavbar",
+          detail: "Implemented glassmorphic top navigation with interactive route indicators, one-tap player launch, and animated mobile drawer with hardware back-button support.",
+        },
+        {
+          title: "MIT Open Source License",
+          detail: "Added official permissive MIT license and enriched open-source project metadata.",
+        },
+      ],
+      improved: [
+        {
+          title: "Mobile Viewport Clamping (100dvh)",
+          detail: "Pinned app shell and scrollable containers to dynamic viewport heights, eliminating double scrollbars on iOS Safari and mobile Chrome.",
+        },
+        {
+          title: "Landing Page Mobile Polish",
+          detail: "Fixed timeline node dot alignment on /changelog, added horizontal swipe hint to comparison table on /features, and optimized typography on /about.",
+        },
+      ],
+      fixed: [
+        {
+          title: "Mobile Listing Y-Axis Overflow",
+          detail: "Resolved overflow issue when playing tracks on mobile by clamping card title heights and hiding overflowing overlays.",
+        },
+      ],
+    },
+    {
       version: "v2.1.0",
       date: "September 11, 2026",
-      isLatest: true,
+      isLatest: false,
       added: [
         {
           title: "Dedicated SEO Landing Pages",
@@ -151,31 +188,8 @@ export default function ChangelogPage() {
 
   return (
     <div className="seo-page-wrapper">
-      {/* Header Bar */}
-      <header className="seo-nav">
-        <Link href="/" className="seo-nav-brand">
-          <div className="seo-nav-logo">
-            <Music size={20} color="#ffffff" />
-          </div>
-          <span className="seo-nav-title">YTaudio</span>
-        </Link>
-
-        <nav className="seo-nav-links">
-          <Link href="/about" className="seo-nav-link">
-            Why YTaudio?
-          </Link>
-          <Link href="/features" className="seo-nav-link">
-            Features
-          </Link>
-          <Link href="/changelog" className="seo-nav-link active">
-            Changelog
-          </Link>
-          <Link href="/" className="seo-play-now-btn">
-            <Play size={14} fill="#ffffff" />
-            <span>Launch Player</span>
-          </Link>
-        </nav>
-      </header>
+      {/* Responsive Top Navigation */}
+      <SeoNavbar activePage="changelog" />
 
       {/* Main Container */}
       <main className="seo-container">
@@ -275,27 +289,14 @@ export default function ChangelogPage() {
         <div className="cta-banner">
           <h2 className="cta-title">Try the Latest Version</h2>
           <p className="cta-desc">
-            Experience the latest v2.1.0 release with screen-off background play, direct link importing, and zero data waste.
+            Experience the latest v2.2.0 release with screen-off background play, direct link importing, and zero data waste.
           </p>
-          <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap" }}>
-            <Link href="/" className="seo-play-now-btn" style={{ padding: "12px 28px", fontSize: "1rem" }}>
+          <div className="cta-btn-group">
+            <Link href="/" className="cta-primary-btn">
               <Play size={18} fill="#ffffff" />
               <span>Launch YTaudio</span>
             </Link>
-            <Link
-              href="/features"
-              className="seo-nav-link"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "12px 24px",
-                border: "1px solid var(--border-subtle)",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(255,255,255,0.05)",
-                color: "#ffffff",
-              }}
-            >
+            <Link href="/features" className="cta-secondary-btn">
               <GitCommit size={16} />
               <span>Explore Features</span>
             </Link>
@@ -306,11 +307,11 @@ export default function ChangelogPage() {
       {/* Footer */}
       <footer className="seo-footer">
         <p>© {new Date().getFullYear()} YTaudio — Built for the love of music & audio clarity.</p>
-        <div style={{ marginTop: "12px", display: "flex", gap: "20px", justifyContent: "center" }}>
-          <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Player</Link>
-          <Link href="/about" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Why YTaudio?</Link>
-          <Link href="/features" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Features</Link>
-          <Link href="/changelog" style={{ color: "var(--text-secondary)", textDecoration: "none" }}>Changelog</Link>
+        <div className="seo-footer-links">
+          <Link href="/" className="seo-footer-link">Player</Link>
+          <Link href="/about" className="seo-footer-link">Why YTaudio?</Link>
+          <Link href="/features" className="seo-footer-link">Features</Link>
+          <Link href="/changelog" className="seo-footer-link">Changelog</Link>
         </div>
       </footer>
     </div>

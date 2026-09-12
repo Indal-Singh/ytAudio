@@ -324,6 +324,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (hasNext || (isShufflingRef.current && list.length > 1)) {
         // Call synchronously from `ended` so mobile browsers allow the next play()
         playNextRef.current();
+      } else if (list.length > 0) {
+        // Wrap around to start of queue if at end, preventing playback death during screen-off
+        playNextRef.current();
       } else {
         // Related fetch may still be in flight — keep waiting for queue growth
         pendingAutoNextRef.current = true;
@@ -502,7 +505,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     async (
       track: Track,
       startTime?: number,
-      options?: { fromQueue?: boolean }
+      options?: { fromQueue?: boolean; surroundingList?: Track[] }
     ) => {
       setError(null);
       setIsLoading(true);
@@ -536,17 +539,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
         } else {
           // PLAYING FROM OUTSIDE (search results, home feed, recommended cards, etc.):
-          // Reset playlist with this newly selected song as track 0
-          currentSeedTrackRef.current = enriched;
-          queueIndexRef.current = 0;
-          setQueueIndex(0);
-          queueRef.current = [enriched];
-          setQueue([enriched]);
-          saveRewindPlaylist(enriched, [enriched]);
+          const surrounding = options?.surroundingList;
+          if (surrounding && surrounding.length > 0) {
+            const enrichedSurrounding: Track[] = surrounding.map((t) => ({ ...t }));
+            const foundIdx = enrichedSurrounding.findIndex((t) => t.id === enriched.id);
+            const startIdx = foundIdx >= 0 ? foundIdx : 0;
+            currentSeedTrackRef.current = enriched;
+            queueIndexRef.current = startIdx;
+            setQueueIndex(startIdx);
+            queueRef.current = enrichedSurrounding;
+            setQueue(enrichedSurrounding);
+            saveRewindPlaylist(enriched, enrichedSurrounding);
+          } else {
+            // Reset playlist with this newly selected song as track 0
+            currentSeedTrackRef.current = enriched;
+            queueIndexRef.current = 0;
+            setQueueIndex(0);
+            queueRef.current = [enriched];
+            setQueue([enriched]);
+            saveRewindPlaylist(enriched, [enriched]);
 
-          // Immediately fetch fresh recommendations for this new song
-          autoQueueFetchingRef.current = null;
-          void fetchRelatedSongs(enriched, true);
+            // Immediately fetch fresh recommendations for this new song
+            autoQueueFetchingRef.current = null;
+            void fetchRelatedSongs(enriched, true);
+          }
         }
 
 
@@ -854,8 +870,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     if (nextIndex >= 0 && nextIndex < list.length) {
       playTrack(list[nextIndex], 0, { fromQueue: true });
-    } else if (isLoopingRef.current) {
-      // Restart playlist from the beginning
+    } else if (isLoopingRef.current || isAutoplayRef.current) {
+      // Restart playlist from the beginning to maintain continuous background playback
       playTrack(list[0], 0, { fromQueue: true });
     } else {
       pendingAutoNextRef.current = true;

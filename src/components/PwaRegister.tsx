@@ -20,6 +20,7 @@ export function PwaRegister() {
           .register("/sw.js")
           .then((reg) => {
             console.log("[PWA] Service Worker registered with scope:", reg.scope);
+            void reg.update();
           })
           .catch((err) => {
             console.warn("[PWA] Service Worker registration failed:", err);

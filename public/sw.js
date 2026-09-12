@@ -1,4 +1,4 @@
-const CACHE_NAME = "ytaudio-cache-v1";
+const CACHE_NAME = "ytaudio-cache-v2.3.0";
 const PRECACHE_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -45,11 +45,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // NEVER cache API streams or large media transfers
+  // NEVER cache API streams, media transfers, or live proxy endpoints
   if (
     url.pathname.startsWith("/api/stream") ||
     url.pathname.startsWith("/api/download") ||
     url.pathname.startsWith("/api/proxy") ||
+    url.pathname.startsWith("/api/sponsorblock") ||
     event.request.headers.get("range")
   ) {
     return; // allow browser default network handling

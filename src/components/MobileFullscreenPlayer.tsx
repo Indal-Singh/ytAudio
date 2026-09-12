@@ -20,6 +20,7 @@ import {
   Video,
   Download,
   Gauge,
+  ShieldCheck,
 } from "lucide-react";
 import { usePlayer, usePlayerTime } from "@/context/PlayerContext";
 import "./MobileFullscreenPlayer.css";
@@ -55,6 +56,9 @@ export function MobileFullscreenPlayer() {
     setShowQueueDrawer,
     setShowVideoModal,
     openDownloadModal,
+    sponsorSegments,
+    sponsorSettings,
+    setShowSponsorModal,
   } = usePlayer();
 
   const currentTime = usePlayerTime();
@@ -231,6 +235,25 @@ export function MobileFullscreenPlayer() {
 
           <div className="fullscreen-info-actions">
             <button
+              type="button"
+              className={`fullscreen-action-pill-btn ${
+                sponsorSettings.enabled ? "sponsor-pill-active" : ""
+              }`}
+              onClick={() => setShowSponsorModal(true)}
+              title={`SponsorBlock: ${
+                sponsorSettings.enabled
+                  ? sponsorSettings.autoSkip
+                    ? "Auto-Skip Active"
+                    : "Manual Prompt Active"
+                  : "Disabled"
+              }`}
+            >
+              <ShieldCheck
+                size={18}
+                color={sponsorSettings.enabled ? "#10b981" : "currentColor"}
+              />
+            </button>
+            <button
               className="fullscreen-action-pill-btn"
               onClick={() => openDownloadModal(currentTrack)}
               title="Download track"
@@ -252,6 +275,25 @@ export function MobileFullscreenPlayer() {
         {/* Scrubber / Progress Bar */}
         <div className="fullscreen-progress-wrapper">
           <div className="fullscreen-timeline-container">
+            {duration > 0 &&
+              sponsorSegments.map((seg, i) => {
+                const startPct = (seg.segment[0] / duration) * 100;
+                const widthPct =
+                  ((seg.segment[1] - seg.segment[0]) / duration) * 100;
+                return (
+                  <div
+                    key={seg.UUID || i}
+                    className={`fullscreen-segment-marker seg-color-${seg.category.replace(
+                      /[^a-z0-9]/gi,
+                      "_"
+                    )}`}
+                    style={{
+                      left: `${Math.max(0, Math.min(100, startPct))}%`,
+                      width: `${Math.max(0.5, Math.min(100 - startPct, widthPct))}%`,
+                    }}
+                  />
+                );
+              })}
             <input
               type="range"
               min="0"

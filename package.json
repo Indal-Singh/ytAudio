@@ -1,6 +1,6 @@
 {
   "name": "ytaudio",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Free YouTube audio streamer with lock-screen playback, 90% data saving, real-time audio visualizer, playlist queue, and 320kbps MP3 downloader.",
   "homepage": "https://yta.indalsingh.dev",
   "keywords": [

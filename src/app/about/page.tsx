@@ -15,6 +15,8 @@ import {
   Play,
   Layers,
   Sparkles,
+  Heart,
+  ExternalLink,
 } from "lucide-react";
 import { SeoNavbar } from "@/components/SeoNavbar";
 import "./about.css";
@@ -283,6 +285,76 @@ export default function AboutPage() {
               <p>
                 No installation is required. YTaudio is a Progressive Web App (PWA) that runs instantly in Chrome,
                 Safari, Brave, Firefox, and Edge. You can also tap &quot;Add to Home Screen&quot; for a full native app feel.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Open Source Credits & Acknowledgements */}
+        <section className="faq-section" style={{ marginTop: "48px" }}>
+          <div style={{ textAlign: "center", marginBottom: "28px" }}>
+            <div className="section-badge">
+              <Heart size={14} color="#ff4d6d" fill="#ff4d6d" />
+              <span>Open Source Credits</span>
+            </div>
+            <h2 className="faq-title" style={{ marginTop: "12px" }}>
+              Built With Gratitude
+            </h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
+              YTaudio stands upon these remarkable open-source projects and community-driven initiatives.
+            </p>
+          </div>
+
+          <div className="faq-grid">
+            <div className="faq-item">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <h4 style={{ margin: 0, color: "#10b981" }}>SponsorBlock</h4>
+                <a href="https://sponsor.ajay.app" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.78rem" }}>
+                  <span>Visit</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+              <p>
+                Created by Ajay Ramachandran. A crowdsourced public database and API that allows YTaudio to automatically skip non-music story dialogues, intro bumpers, sponsor reads, and outros.
+              </p>
+            </div>
+
+            <div className="faq-item">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <h4 style={{ margin: 0, color: "#00f0ff" }}>yt-dlp</h4>
+                <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.78rem" }}>
+                  <span>GitHub</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+              <p>
+                The industry-standard, high-performance command-line multimedia extraction utility used for reliable audio stream resolution.
+              </p>
+            </div>
+
+            <div className="faq-item">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <h4 style={{ margin: 0, color: "#a855f7" }}>FFmpeg</h4>
+                <a href="https://ffmpeg.org" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.78rem" }}>
+                  <span>Website</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+              <p>
+                The complete cross-platform multimedia solution powering YTaudio&apos;s server-side audio transcoding and 320kbps MP3 conversion pipeline.
+              </p>
+            </div>
+
+            <div className="faq-item">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                <h4 style={{ margin: 0, color: "#f59e0b" }}>Next.js & React</h4>
+                <a href="https://nextjs.org" target="_blank" rel="noopener noreferrer" style={{ color: "var(--text-muted)", display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.78rem" }}>
+                  <span>Vercel</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+              <p>
+                Framework powering our server-rendered pages, API routes, streaming proxies, and Progressive Web App client architecture.
               </p>
             </div>
           </div>

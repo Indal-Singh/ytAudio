@@ -31,6 +31,40 @@ export interface RewindPlaylist {
   playedAt: number;
 }
 
+export type SponsorCategory =
+  | "sponsor"
+  | "intro"
+  | "outro"
+  | "music_offtopic"
+  | "selfpromo"
+  | "interaction";
+
+export interface SponsorSegment {
+  category: SponsorCategory | string;
+  actionType: string;
+  segment: [number, number];
+  UUID: string;
+  videoDuration?: number;
+}
+
+export interface SponsorSettings {
+  enabled: boolean;
+  autoSkip: boolean;
+  skipMusicOfftopic: boolean;
+  skipSponsor: boolean;
+  skipOutro: boolean;
+  skipSelfpromo: boolean;
+  skipInteraction: boolean;
+}
+
+export interface SponsorToastData {
+  category: string;
+  durationSkipped: number;
+  prevTime: number;
+  newTime: number;
+  segmentUUID: string;
+}
+
 export interface PlayerContextType {
   currentTrack: Track | null;
   isPlaying: boolean;
@@ -99,6 +133,16 @@ export interface PlayerContextType {
   playDirectUrl: (urlOrId: string) => Promise<void>;
   isFindingRelated: boolean;
   loadMoreRelatedSongs: () => Promise<void>;
+  sponsorSegments: SponsorSegment[];
+  sponsorSettings: SponsorSettings;
+  updateSponsorSettings: (newSettings: Partial<SponsorSettings>) => void;
+  showSponsorModal: boolean;
+  setShowSponsorModal: (val: boolean) => void;
+  activePromptSegment: SponsorSegment | null;
+  skipCurrentSegment: () => void;
+  sponsorToast: SponsorToastData | null;
+  undoSponsorSkip: () => void;
+  dismissSponsorToast: () => void;
 }
 
 export type PlaybackStatus = {
@@ -118,4 +162,7 @@ export type PlayerActions = {
   addToQueue: (track: Track) => void;
   addToPlayNext: (track: Track) => void;
   openDownloadModal: (track?: Track) => void;
+  openSponsorModal: () => void;
+  skipCurrentSegment: () => void;
+  undoSponsorSkip: () => void;
 };

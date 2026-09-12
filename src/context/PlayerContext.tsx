@@ -28,6 +28,9 @@ import type {
   PlayerContextType,
   PlaybackStatus,
   PlayerActions,
+  SponsorSegment,
+  SponsorSettings,
+  SponsorToastData,
 } from "./playerTypes";
 
 export type {
@@ -37,12 +40,47 @@ export type {
   PlayerContextType,
   PlaybackStatus,
   PlayerActions,
+  SponsorSegment,
+  SponsorSettings,
+  SponsorToastData,
 };
 
 import { usePlayerStorage } from "./usePlayerStorage";
 import { usePlayerMediaSession } from "./usePlayerMediaSession";
 import { usePlayerKeyboard } from "./usePlayerKeyboard";
 import { usePlayerBackHandler } from "./usePlayerBackHandler";
+
+const DEFAULT_SPONSOR_SETTINGS: SponsorSettings = {
+  enabled: true,
+  autoSkip: true,
+  skipMusicOfftopic: true,
+  skipSponsor: true,
+  skipOutro: true,
+  skipSelfpromo: true,
+  skipInteraction: true,
+};
+
+const SPONSOR_STORAGE_KEY = "yt_sponsorblock_settings_v1";
+
+function shouldSkipCategory(category: string, settings: SponsorSettings): boolean {
+  if (!settings.enabled) return false;
+  switch (category) {
+    case "music_offtopic":
+      return settings.skipMusicOfftopic;
+    case "sponsor":
+      return settings.skipSponsor;
+    case "outro":
+      return settings.skipOutro;
+    case "selfpromo":
+      return settings.skipSelfpromo;
+    case "interaction":
+      return settings.skipInteraction;
+    case "intro":
+      return settings.skipMusicOfftopic;
+    default:
+      return false;
+  }
+}
 
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -174,6 +212,80 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [showFullscreenPlayer, setShowFullscreenPlayer] = useState<boolean>(false);
   const [downloadTrack, setDownloadTrack] = useState<Track | null>(null);
 
+  // SponsorBlock state & settings
+  const [sponsorSegments, setSponsorSegments] = useState<SponsorSegment[]>([]);
+  const sponsorSegmentsRef = useRef<SponsorSegment[]>([]);
+  sponsorSegmentsRef.current = sponsorSegments;
+
+  const [sponsorSettings, setSponsorSettings] = useState<SponsorSettings>(() => {
+    if (typeof window === "undefined") return DEFAULT_SPONSOR_SETTINGS;
+    try {
+      const raw = localStorage.getItem(SPONSOR_STORAGE_KEY);
+      if (raw) return { ...DEFAULT_SPONSOR_SETTINGS, ...JSON.parse(raw) };
+    } catch {}
+    return DEFAULT_SPONSOR_SETTINGS;
+  });
+  const sponsorSettingsRef = useRef<SponsorSettings>(sponsorSettings);
+  sponsorSettingsRef.current = sponsorSettings;
+
+  const [showSponsorModal, setShowSponsorModal] = useState<boolean>(false);
+  const [activePromptSegment, setActivePromptSegment] = useState<SponsorSegment | null>(null);
+  const [sponsorToast, setSponsorToast] = useState<SponsorToastData | null>(null);
+  const ignoredSegmentsRef = useRef<Set<string>>(new Set());
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const updateSponsorSettings = useCallback((newSettings: Partial<SponsorSettings>) => {
+    setSponsorSettings((prev) => {
+      const updated = { ...prev, ...newSettings };
+      sponsorSettingsRef.current = updated;
+      try {
+        localStorage.setItem(SPONSOR_STORAGE_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  }, []);
+
+  const openSponsorModal = useCallback(() => {
+    setShowSponsorModal(true);
+  }, []);
+
+  const dismissSponsorToast = useCallback(() => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setSponsorToast(null);
+  }, []);
+
+  const undoSponsorSkip = useCallback(() => {
+    if (!sponsorToast || !audioRef.current) return;
+    audioRef.current.currentTime = sponsorToast.prevTime;
+    notifyTime(sponsorToast.prevTime);
+    dismissSponsorToast();
+  }, [sponsorToast, notifyTime, dismissSponsorToast]);
+
+  const skipCurrentSegment = useCallback(() => {
+    if (!activePromptSegment || !audioRef.current) return;
+    const skipTo = activePromptSegment.segment[1];
+    ignoredSegmentsRef.current.add(activePromptSegment.UUID);
+    audioRef.current.currentTime = skipTo;
+    notifyTime(skipTo);
+    setActivePromptSegment(null);
+  }, [activePromptSegment, notifyTime]);
+
+  const fetchSponsorSegments = useCallback(async (videoId: string) => {
+    try {
+      const res = await fetch(`/api/sponsorblock?id=${encodeURIComponent(videoId)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.segments)) {
+        if (currentTrackRef.current?.id === videoId) {
+          setSponsorSegments(data.segments);
+          sponsorSegmentsRef.current = data.segments;
+        }
+      }
+    } catch {
+      // Ignore network errors
+    }
+  }, []);
+
   // Hardware/Browser Back button interception for modals & drawers
   usePlayerBackHandler({
     showVisualizer,
@@ -188,6 +300,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setShowDownloadModal,
     showFullscreenPlayer,
     setShowFullscreenPlayer,
+    showSponsorModal,
+    setShowSponsorModal,
   });
 
   const openDownloadModal = useCallback((track?: Track) => {
@@ -266,6 +380,48 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (dur > 0 && t / dur >= 0.7) {
         const next = queueRef.current[queueIndexRef.current + 1];
         prefetchTrackStream(next);
+      }
+
+      // SponsorBlock segment check
+      const currentSettings = sponsorSettingsRef.current;
+      if (currentSettings.enabled && sponsorSegmentsRef.current.length > 0) {
+        const activeSeg = sponsorSegmentsRef.current.find(
+          (seg) =>
+            t >= seg.segment[0] - 0.1 &&
+            t < seg.segment[1] - 0.4 &&
+            !ignoredSegmentsRef.current.has(seg.UUID) &&
+            shouldSkipCategory(seg.category, currentSettings)
+        );
+
+        if (activeSeg) {
+          if (currentSettings.autoSkip) {
+            const skipTo = activeSeg.segment[1];
+            const skippedDuration = Math.round((skipTo - t) * 10) / 10;
+            ignoredSegmentsRef.current.add(activeSeg.UUID);
+            audio.currentTime = skipTo;
+            notifyTime(skipTo);
+
+            setSponsorToast({
+              category: activeSeg.category,
+              durationSkipped:
+                skippedDuration > 0
+                  ? skippedDuration
+                  : Math.round((activeSeg.segment[1] - activeSeg.segment[0]) * 10) / 10,
+              prevTime: t,
+              newTime: skipTo,
+              segmentUUID: activeSeg.UUID,
+            });
+
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => {
+              setSponsorToast(null);
+            }, 4000);
+          } else {
+            setActivePromptSegment(activeSeg);
+          }
+        } else {
+          setActivePromptSegment((prev) => (prev ? null : null));
+        }
       }
     };
 
@@ -570,6 +726,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setCurrentTrack(enriched);
         setDuration(enriched.duration || 0);
         notifyTime(startAt);
+
+        // Reset and fetch SponsorBlock segments for newly played track
+        ignoredSegmentsRef.current.clear();
+        setSponsorSegments([]);
+        sponsorSegmentsRef.current = [];
+        setActivePromptSegment(null);
+        dismissSponsorToast();
+        void fetchSponsorSegments(enriched.id);
 
         const audio = audioRef.current;
         if (audio) {
@@ -1086,8 +1250,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       addToQueue,
       addToPlayNext,
       openDownloadModal,
+      openSponsorModal,
+      skipCurrentSegment,
+      undoSponsorSkip,
     }),
-    [playTrack, playFromQueue, togglePlay, addToQueue, addToPlayNext, openDownloadModal]
+    [
+      playTrack,
+      playFromQueue,
+      togglePlay,
+      addToQueue,
+      addToPlayNext,
+      openDownloadModal,
+      openSponsorModal,
+      skipCurrentSegment,
+      undoSponsorSkip,
+    ]
   );
 
   const playbackStatus = useMemo<PlaybackStatus>(
@@ -1169,6 +1346,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             playDirectUrl,
             isFindingRelated,
             loadMoreRelatedSongs,
+            sponsorSegments,
+            sponsorSettings,
+            updateSponsorSettings,
+            showSponsorModal,
+            setShowSponsorModal,
+            activePromptSegment,
+            skipCurrentSegment,
+            sponsorToast,
+            undoSponsorSkip,
+            dismissSponsorToast,
           }}
         >
           {children}

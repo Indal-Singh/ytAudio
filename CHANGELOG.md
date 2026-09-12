@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.3.0] - 2026-09-12
+
+### 🚀 Added
+- **SponsorBlock Integration (Auto-Skip & Manual Controls)**:
+  - Direct integration with the crowdsourced [SponsorBlock API](https://sponsor.ajay.app) for YouTube.
+  - Automatically skips non-music story dialogues, intro bumper animations, paid sponsor reads, outros/end-screens, self-promotions, and subscribe reminders.
+  - Interactive toast notification with an instant **Undo** button (`🛡️ Skipped Non-Music Intro • [Undo]`) allowing listeners to restore any skipped section.
+  - **SponsorBlock Controls Modal**: Configurable master toggle, mode selector (**Auto-Skip** vs **Manual Prompt**), and category-level customization.
+  - **Timeline Segment Markers**: Color-coded stripes along the audio scrubber across desktop and mobile fullscreen players (cyan for dialogue, green for sponsors, purple for outros).
+  - High-performance server-side caching route `/api/sponsorblock` with 1-hour in-memory cache and silent fallback.
+- **Credits & Open-Source Acknowledgements**:
+  - Dedicated open-source credits section highlighting [SponsorBlock](https://sponsor.ajay.app) by Ajay Ramachandran, [yt-dlp](https://github.com/yt-dlp/yt-dlp), [FFmpeg](https://ffmpeg.org), [Next.js](https://nextjs.org), and [Lucide Icons](https://lucide.dev).
+
+---
+
 ## [2.2.0] - 2026-09-12
 
 ### 🚀 Added

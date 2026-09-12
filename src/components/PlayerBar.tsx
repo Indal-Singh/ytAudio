@@ -20,6 +20,7 @@ import {
   Disc,
   Video,
   Download,
+  ShieldCheck,
 } from "lucide-react";
 import { usePlayer, usePlayerTime } from "@/context/PlayerContext";
 import { MobileFullscreenPlayer } from "./MobileFullscreenPlayer";
@@ -57,6 +58,9 @@ export function PlayerBar() {
     setShowQueueDrawer,
     setShowVideoModal,
     openDownloadModal,
+    sponsorSegments,
+    sponsorSettings,
+    setShowSponsorModal,
   } = usePlayer();
   const currentTime = usePlayerTime();
   const upcomingCount = Math.max(0, queue.length - queueIndex - 1);
@@ -139,6 +143,27 @@ export function PlayerBar() {
     <footer className="player-bar-container glass-dock">
       {/* Top Timeline Bar across the entire player */}
       <div className="timeline-container">
+        {duration > 0 &&
+          sponsorSegments.map((seg, i) => {
+            const startPct = (seg.segment[0] / duration) * 100;
+            const widthPct = ((seg.segment[1] - seg.segment[0]) / duration) * 100;
+            return (
+              <div
+                key={seg.UUID || i}
+                className={`scrub-segment-marker seg-color-${seg.category.replace(
+                  /[^a-z0-9]/gi,
+                  "_"
+                )}`}
+                style={{
+                  left: `${Math.max(0, Math.min(100, startPct))}%`,
+                  width: `${Math.max(0.4, Math.min(100 - startPct, widthPct))}%`,
+                }}
+                title={`${seg.category}: ${formatTime(seg.segment[0])} - ${formatTime(
+                  seg.segment[1]
+                )}`}
+              />
+            );
+          })}
         <input
           type="range"
           min="0"
@@ -365,6 +390,27 @@ export function PlayerBar() {
               aria-label="Volume Slider"
             />
           </div>
+
+          {/* SponsorBlock Controls Button */}
+          <button
+            type="button"
+            className={`action-btn sponsor-dock-btn ${
+              sponsorSettings.enabled ? "sponsor-btn-active" : ""
+            }`}
+            onClick={() => setShowSponsorModal(true)}
+            title={`SponsorBlock: ${
+              sponsorSettings.enabled
+                ? sponsorSettings.autoSkip
+                  ? "Auto-Skip Active"
+                  : "Manual Prompt Active"
+                : "Disabled"
+            }`}
+          >
+            <ShieldCheck
+              size={19}
+              color={sponsorSettings.enabled ? "#10b981" : "currentColor"}
+            />
+          </button>
 
           {/* Queue Button */}
           <button

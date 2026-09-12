@@ -37,9 +37,39 @@ export const metadata: Metadata = {
 export default function ChangelogPage() {
   const releases = [
     {
-      version: "v2.2.0",
+      version: "v2.3.0",
       date: "September 12, 2026",
       isLatest: true,
+      added: [
+        {
+          title: "SponsorBlock Integration (Auto-Skip & Manual Controls)",
+          detail: "Integrated the community-powered SponsorBlock API to automatically skip non-music intros, story dialogues, paid sponsor reads, outros, and subscribe reminders with an instant Undo toast notification.",
+        },
+        {
+          title: "Configurable SponsorBlock Modal",
+          detail: "Interactive settings modal with master toggle, Auto-Skip vs Manual Prompt mode selection, granular category checkboxes, and live track segments list.",
+        },
+        {
+          title: "Timeline Scrubber Segment Markers",
+          detail: "Color-coded segment stripes rendered on both desktop and mobile fullscreen seekbars (Cyan for dialogues, Green for sponsors, Purple for outros).",
+        },
+        {
+          title: "Dedicated Open Source Credits",
+          detail: "Added public credits acknowledging SponsorBlock, yt-dlp, FFmpeg, Next.js, and Lucide Icons across documentation and landing pages.",
+        },
+      ],
+      improved: [
+        {
+          title: "High-Performance Server Caching",
+          detail: "Cached SponsorBlock segments for 1 hour in /api/sponsorblock with silent 404 fallbacks preventing unnecessary outbound requests.",
+        },
+      ],
+      fixed: [],
+    },
+    {
+      version: "v2.2.0",
+      date: "September 12, 2026",
+      isLatest: false,
       added: [
         {
           title: "PWA Screen-Off Continuous Autoplay",
@@ -289,7 +319,7 @@ export default function ChangelogPage() {
         <div className="cta-banner">
           <h2 className="cta-title">Try the Latest Version</h2>
           <p className="cta-desc">
-            Experience the latest v2.2.0 release with screen-off background play, direct link importing, and zero data waste.
+            Experience the latest v2.3.0 release with SponsorBlock auto-skipping, screen-off background play, and zero data waste.
           </p>
           <div className="cta-btn-group">
             <Link href="/" className="cta-primary-btn">

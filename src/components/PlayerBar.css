@@ -125,6 +125,57 @@
   height: 6px;
 }
 
+/* SponsorBlock colored segment markers on scrubber */
+.scrub-segment-marker {
+  position: absolute;
+  top: 0;
+  height: 3px;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 1px;
+  transition: height 0.15s ease;
+}
+
+.timeline-container:hover .scrub-segment-marker {
+  height: 6px;
+}
+
+.seg-color-music_offtopic {
+  background: #06b6d4;
+  box-shadow: 0 0 6px rgba(6, 182, 212, 0.6);
+}
+
+.seg-color-sponsor {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.seg-color-outro {
+  background: #a855f7;
+  box-shadow: 0 0 6px rgba(168, 85, 247, 0.6);
+}
+
+.seg-color-selfpromo {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+.seg-color-interaction {
+  background: #ec4899;
+  box-shadow: 0 0 6px rgba(236, 72, 153, 0.6);
+}
+
+.sponsor-dock-btn.sponsor-btn-active {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.sponsor-dock-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
 .player-content {
   flex: 1;
   display: flex;

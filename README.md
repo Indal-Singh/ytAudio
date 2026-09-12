@@ -90,6 +90,18 @@ docker compose up --build -d
 
 ---
 
+## 🙌 Credits & Open-Source Acknowledgements
+
+YTaudio is built with gratitude upon these incredible open-source projects and communities:
+
+- **[SponsorBlock](https://sponsor.ajay.app)** by [Ajay Ramachandran](https://github.com/ajayyy) — The crowdsourced database and public API powering automatic skipping of non-music dialogues, story scenes, sponsor reads, and outros.
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — The world-class command-line audio and video extraction utility.
+- **[FFmpeg](https://ffmpeg.org)** — The multimedia framework powering server-side audio extraction, remuxing, and 320kbps MP3 conversion.
+- **[Next.js](https://nextjs.org)** by Vercel — The React framework powering SSR, route handlers, and PWA capabilities.
+- **[Lucide Icons](https://lucide.dev)** — Clean, modern iconography across the player and controls.
+
+---
+
 ## 📄 License
 
 This project is open-source and available under the [MIT License](LICENSE).

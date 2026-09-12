@@ -11,6 +11,8 @@ import { DirectUrlModal } from "@/components/DirectUrlModal";
 import { QueueDrawer } from "@/components/QueueDrawer";
 import { VideoPlayerModal } from "@/components/VideoPlayerModal";
 import { DownloadModal } from "@/components/DownloadModal";
+import { SponsorModal } from "@/components/SponsorModal";
+import { SponsorToast } from "@/components/SponsorToast";
 import { TopLoader } from "@/components/TopLoader";
 import { usePlayer } from "@/context/PlayerContext";
 import { Sparkles, Radio, Music, AlertCircle, RefreshCw, Play, X, Clock } from "lucide-react";
@@ -630,6 +632,8 @@ export default function Home() {
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
       />
+      <SponsorModal />
+      <SponsorToast />
 
     </div>
   );

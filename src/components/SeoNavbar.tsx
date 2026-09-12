@@ -84,7 +84,7 @@ export function SeoNavbar({ activePage }: SeoNavbarProps) {
       href: "/changelog",
       label: "Changelog",
       miniLabel: "Changelog",
-      subLabel: "v2.2.0 release notes & update history",
+      subLabel: "v2.3.0 release notes & update history",
       icon: GitCommit,
     },
   ];
@@ -217,7 +217,7 @@ export function SeoNavbar({ activePage }: SeoNavbarProps) {
             </nav>
 
             <div className="seo-drawer-footer">
-              <span className="seo-drawer-version">YTaudio v2.2.0 • Free & Web-Based</span>
+              <span className="seo-drawer-version">YTaudio v2.3.0 • Free & Web-Based</span>
             </div>
           </div>
         </div>

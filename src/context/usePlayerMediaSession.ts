@@ -14,6 +14,8 @@ interface UsePlayerMediaSessionProps {
   playPrev: () => void;
   seek: (seconds: number) => void;
   skipBy: (seconds: number) => void;
+  resumeAudio?: () => void;
+  pauseAudio?: () => void;
 }
 
 export function usePlayerMediaSession({
@@ -27,6 +29,8 @@ export function usePlayerMediaSession({
   playPrev,
   seek,
   skipBy,
+  resumeAudio,
+  pauseAudio,
 }: UsePlayerMediaSessionProps) {
   // Media Session API — lock screen / headset controls metadata and action handlers
   useEffect(() => {
@@ -65,10 +69,18 @@ export function usePlayerMediaSession({
     };
 
     bind("play", () => {
-      audioRef.current?.play().catch(() => {});
+      if (resumeAudio) {
+        resumeAudio();
+      } else {
+        audioRef.current?.play().catch(() => {});
+      }
     });
     bind("pause", () => {
-      audioRef.current?.pause();
+      if (pauseAudio) {
+        pauseAudio();
+      } else {
+        audioRef.current?.pause();
+      }
     });
     bind("previoustrack", () => playPrev());
     bind("nexttrack", () => playNext());
@@ -91,7 +103,7 @@ export function usePlayerMediaSession({
       bind("seekforward", null);
       bind("seekto", null);
     };
-  }, [currentTrack, playNext, playPrev, seek, skipBy, audioRef]);
+  }, [currentTrack, playNext, playPrev, seek, skipBy, audioRef, resumeAudio, pauseAudio]);
 
   // Sync playback state (playing / paused)
   useEffect(() => {

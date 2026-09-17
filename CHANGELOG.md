@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.4.0] - 2026-09-17
+
+### 🚀 Added
+- **Browser IndexedDB Audio Caching**:
+  - Full client-side persistent audio caching using IndexedDB (`yt_audio_cache_db` / `audio_tracks`).
+  - Automatically caches the current playing track concurrently in the background while starting playback immediately without delay.
+  - **Zero-Latency Pause & Resume**: When music is paused, playback switches seamlessly to the local memory/disk Blob URL, eliminating HTTP socket dropouts, stream token expirations, and 3-6 second server re-extraction delays when resuming after minutes of pause.
+  - **Self-Healing Stream Recovery**: Recovers automatically from network stalls or dropped connections during playback by falling back to the locally cached Blob.
+  - **Local Retention for Previous 3 Songs**: Automatically retains the current track plus the previous 3 played songs in IndexedDB via LRU pruning for instant (< 10ms), zero-network rewind and replay.
+  - **Proactive Upcoming Pre-caching**: Automatically begins background caching for the next queue item when playback passes 80% duration.
+  - Extended `usePlayerMediaSession` with `resumeAudio` so lock-screen and headset controls benefit from instant cache resume.
+
+### 🎨 Improved & Fixed
+- **Search Results Smart Playlist Isolation**:
+  - Fixed an issue where clicking any song in search results would populate the entire queue with raw search query results.
+  - Playing a searched track now initializes that song as Track 0 and automatically generates a dedicated smart radio playlist of 25 similar/recommended tracks via `fetchRelatedSongs`.
+
+---
+
 ## [2.3.0] - 2026-09-12
 
 ### 🚀 Added

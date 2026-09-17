@@ -37,9 +37,47 @@ export const metadata: Metadata = {
 export default function ChangelogPage() {
   const releases = [
     {
+      version: "v2.4.0",
+      date: "September 17, 2026",
+      isLatest: true,
+      added: [
+        {
+          title: "Browser IndexedDB Audio Caching",
+          detail: "Full client-side persistent audio caching using IndexedDB (yt_audio_cache_db), background downloading complete tracks while streaming immediately.",
+        },
+        {
+          title: "Zero-Latency Pause & Resume",
+          detail: "Seamlessly switches paused tracks to local Blob URLs so resuming after minutes or hours happens instantaneously (< 10ms) without socket timeouts or yt-dlp re-extraction delays.",
+        },
+        {
+          title: "Local Retention for Previous 3 Songs",
+          detail: "Maintains the current track and up to the previous 3 played songs in local storage with automatic LRU pruning for instant, zero-network rewind.",
+        },
+        {
+          title: "Self-Healing Stream Recovery",
+          detail: "Automatically recovers playback using locally cached audio Blobs if network proxy connections drop or stall while paused.",
+        },
+        {
+          title: "Proactive Queue Pre-caching",
+          detail: "Pre-caches upcoming queue tracks into IndexedDB when current playback crosses 80% duration for gapless transitions.",
+        },
+      ],
+      improved: [
+        {
+          title: "Search Results Smart Playlist Isolation",
+          detail: "Playing a song from search results now starts that song cleanly as Track 0 and automatically generates 25 related/matching songs instead of cloning raw search results into the queue.",
+        },
+        {
+          title: "Lock-Screen & Headset Cache Resume",
+          detail: "Updated MediaSession hooks so lock-screen and headphone play/pause controls benefit from instant cache-resume.",
+        },
+      ],
+      fixed: [],
+    },
+    {
       version: "v2.3.0",
       date: "September 12, 2026",
-      isLatest: true,
+      isLatest: false,
       added: [
         {
           title: "SponsorBlock Integration (Auto-Skip & Manual Controls)",
@@ -319,7 +357,7 @@ export default function ChangelogPage() {
         <div className="cta-banner">
           <h2 className="cta-title">Try the Latest Version</h2>
           <p className="cta-desc">
-            Experience the latest v2.3.0 release with SponsorBlock auto-skipping, screen-off background play, and zero data waste.
+            Experience the latest v2.4.0 release with persistent IndexedDB audio caching, zero-delay pause/resume, and smart playlist generation.
           </p>
           <div className="cta-btn-group">
             <Link href="/" className="cta-primary-btn">

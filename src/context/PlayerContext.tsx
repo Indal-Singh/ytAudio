@@ -49,6 +49,13 @@ import { usePlayerStorage } from "./usePlayerStorage";
 import { usePlayerMediaSession } from "./usePlayerMediaSession";
 import { usePlayerKeyboard } from "./usePlayerKeyboard";
 import { usePlayerBackHandler } from "./usePlayerBackHandler";
+import {
+  getCachedAudioBlob,
+  fetchAndCacheTrack,
+  pruneAudioCache,
+  getOrCreateBlobUrl,
+  revokeAllBlobUrls,
+} from "@/lib/audioCache";
 
 const DEFAULT_SPONSOR_SETTINGS: SponsorSettings = {
   enabled: true,
@@ -379,7 +386,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const dur = audio.duration || durationRef.current;
       if (dur > 0 && t / dur >= 0.7) {
         const next = queueRef.current[queueIndexRef.current + 1];
-        prefetchTrackStream(next);
+        if (next) {
+          prefetchTrackStream(next);
+          // Pre-cache upcoming song into IndexedDB when >= 80% through current track
+          if (t / dur >= 0.8) {
+            void fetchAndCacheTrack(next);
+          }
+        }
       }
 
       // SponsorBlock segment check
@@ -433,7 +446,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
 
     const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => {
+    const handlePause = async () => {
       setIsPlaying(false);
       if (currentTrackRef.current && audio.currentTime > 1) {
         saveSessionToStorage(
@@ -442,6 +455,31 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           audio.duration || 0,
           true
         );
+      }
+
+      // Check if current track has finished caching; if so, swap to local blob
+      // while paused so that resuming after 1-2 minutes is 100% instantaneous!
+      const track = currentTrackRef.current;
+      if (track && audio.src && !audio.src.startsWith("blob:")) {
+        try {
+          const blob = await getCachedAudioBlob(track.id);
+          if (
+            blob &&
+            currentTrackRef.current?.id === track.id &&
+            audioRef.current === audio &&
+            audio.paused
+          ) {
+            const blobUrl = getOrCreateBlobUrl(track.id, blob);
+            const pos = audio.currentTime;
+            audio.src = blobUrl;
+            const restorePos = () => {
+              try {
+                audio.currentTime = pos;
+              } catch {}
+            };
+            audio.addEventListener("loadedmetadata", restorePos, { once: true });
+          }
+        } catch {}
       }
     };
     const handleWaiting = () => setIsLoading(true);
@@ -491,8 +529,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const handleError = () => {
+    const handleError = async () => {
       console.warn("Audio playback error encountered on", audio.src);
+      const track = currentTrackRef.current;
+      // Self-healing recovery via cached blob if network stream stalled or disconnected
+      if (track && audio.src && !audio.src.startsWith("blob:")) {
+        try {
+          const blob = await getCachedAudioBlob(track.id);
+          if (blob && currentTrackRef.current?.id === track.id && audioRef.current === audio) {
+            console.info("Recovering playback using cached audio blob for", track.id);
+            const blobUrl = getOrCreateBlobUrl(track.id, blob);
+            const pos = currentTimeRef.current;
+            audio.src = blobUrl;
+            const onLoaded = () => {
+              try {
+                audio.currentTime = pos;
+              } catch {}
+              audio.play().then(() => setIsPlaying(true)).catch(() => {});
+            };
+            audio.addEventListener("loadedmetadata", onLoaded, { once: true });
+            return;
+          }
+        } catch {}
+      }
+
       setIsLoading(false);
       setIsPlaying(false);
       setError("Playback error: unable to stream audio.");
@@ -521,6 +581,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("click", unlock);
       audio.removeAttribute("src");
       audio.load();
+      revokeAllBlobUrls();
       if (audio.parentNode) audio.parentNode.removeChild(audio);
       if (audioRef.current === audio) audioRef.current = null;
     };
@@ -737,11 +798,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         const audio = audioRef.current;
         if (audio) {
-          const warmUrl =
-            enriched.audioUrl || prefetchedUrlsRef.current.get(enriched.id);
-          const proxyAudioSrc = warmUrl
-            ? `/api/proxy?id=${encodeURIComponent(enriched.id)}&url=${encodeURIComponent(warmUrl)}`
-            : `/api/proxy?id=${encodeURIComponent(enriched.id)}`;
+          // Check IndexedDB cache first for instant local playback
+          const cachedBlob = await getCachedAudioBlob(enriched.id);
+          let proxyAudioSrc = "";
+
+          if (cachedBlob) {
+            proxyAudioSrc = getOrCreateBlobUrl(enriched.id, cachedBlob);
+          } else {
+            const warmUrl =
+              enriched.audioUrl || prefetchedUrlsRef.current.get(enriched.id);
+            proxyAudioSrc = warmUrl
+              ? `/api/proxy?id=${encodeURIComponent(enriched.id)}&url=${encodeURIComponent(warmUrl)}`
+              : `/api/proxy?id=${encodeURIComponent(enriched.id)}`;
+
+            // Concurrently download and cache track into IndexedDB
+            void fetchAndCacheTrack(enriched);
+          }
+
+          // Retain current song + up to 3 previous songs in local cache
+          const recentHistoryIds = historyRef.current.map((t) => t.id);
+          void pruneAudioCache(enriched.id, recentHistoryIds, 3);
 
           // Start media ASAP — critical for mobile continued play after `ended`
           audio.src = proxyAudioSrc;
@@ -803,18 +879,56 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [initWebAudio, playbackRate, isMuted, volume, saveSessionToStorage, notifyTime, prefetchTrackStream, fetchRelatedSongs]
   );
 
+  const resumeWithCacheFallback = useCallback(
+    async (audio: HTMLAudioElement, track: Track) => {
+      initWebAudio();
+      if (audioContextRef.current && audioContextRef.current.state === "suspended") {
+        void audioContextRef.current.resume();
+      }
+
+      // If audio.src is not a blob URL, check if a cached blob is available to avoid socket/403 delays
+      if (audio.src && !audio.src.startsWith("blob:")) {
+        try {
+          const blob = await getCachedAudioBlob(track.id);
+          if (blob && currentTrackRef.current?.id === track.id) {
+            const blobUrl = getOrCreateBlobUrl(track.id, blob);
+            const pos = audio.currentTime;
+            audio.src = blobUrl;
+            const onLoaded = () => {
+              try {
+                audio.currentTime = pos;
+              } catch {}
+              audio
+                .play()
+                .then(() => setIsPlaying(true))
+                .catch((e) => console.warn("Resume audio error:", e));
+            };
+            audio.addEventListener("loadedmetadata", onLoaded, { once: true });
+            return;
+          }
+        } catch {
+          // Fall through to standard play
+        }
+      }
+
+      audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((e) => console.warn("Resume audio error:", e));
+    },
+    [initWebAudio]
+  );
+
   const togglePlay = useCallback(() => {
-    if (!audioRef.current || !currentTrack) return;
-    initWebAudio();
-    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
-    }
+    const audio = audioRef.current;
+    if (!audio || !currentTrack) return;
     if (isPlaying) {
-      audioRef.current.pause();
+      audio.pause();
+      setIsPlaying(false);
     } else {
-      audioRef.current.play().catch((e) => console.error("Resume error:", e));
+      void resumeWithCacheFallback(audio, currentTrack);
     }
-  }, [isPlaying, currentTrack, initWebAudio]);
+  }, [isPlaying, currentTrack, resumeWithCacheFallback]);
 
   const playFromQueue = useCallback(
     async (index: number) => {
@@ -891,16 +1005,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resumeAudio = useCallback(() => {
-    if (!audioRef.current || !currentTrack) return;
-    initWebAudio();
-    if (audioContextRef.current && audioContextRef.current.state === "suspended") {
-      audioContextRef.current.resume();
-    }
-    audioRef.current
-      .play()
-      .then(() => setIsPlaying(true))
-      .catch((e) => console.warn("Resume audio error:", e));
-  }, [currentTrack, initWebAudio]);
+    const audio = audioRef.current;
+    if (!audio || !currentTrack) return;
+    void resumeWithCacheFallback(audio, currentTrack);
+  }, [currentTrack, resumeWithCacheFallback]);
 
   const syncTimeAndPlay = useCallback(
     (seconds: number, autoPlay: boolean = true) => {
@@ -1233,6 +1341,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     playPrev,
     seek,
     skipBy,
+    resumeAudio,
+    pauseAudio,
   });
 
   usePlayerKeyboard({

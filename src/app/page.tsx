@@ -80,6 +80,7 @@ export default function Home() {
   historyRef.current = history;
 
   const isForYou = currentQuery === FOR_YOU_QUERY;
+  const isSearch = !isForYou && !activeCategory;
   const showHomeRecs =
     !isForYou &&
     activeCategory === "trending music" &&
@@ -579,7 +580,11 @@ export default function Home() {
                 )}
                 <div className="video-grid">
                   {videos.map((item) => (
-                    <AudioCard key={item.id} video={item} playlist={videos} />
+                    <AudioCard
+                      key={item.id}
+                      video={item}
+                      playlist={isSearch ? undefined : videos}
+                    />
                   ))}
                 </div>
 

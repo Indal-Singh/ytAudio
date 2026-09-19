@@ -12,11 +12,12 @@ import {
   GitCommit,
   Radio,
   ArrowRight,
+  Scissors,
 } from "lucide-react";
 import "./SeoNavbar.css";
 
 interface SeoNavbarProps {
-  activePage: "about" | "features" | "changelog";
+  activePage?: "about" | "features" | "changelog" | "cutter";
 }
 
 export function SeoNavbar({ activePage }: SeoNavbarProps) {
@@ -80,11 +81,19 @@ export function SeoNavbar({ activePage }: SeoNavbarProps) {
       icon: Zap,
     },
     {
+      id: "cutter",
+      href: "/cutter",
+      label: "Video Cutter",
+      miniLabel: "Cutter",
+      subLabel: "Trim YouTube videos & download MP4/MP3",
+      icon: Scissors,
+    },
+    {
       id: "changelog",
       href: "/changelog",
       label: "Changelog",
       miniLabel: "Changelog",
-      subLabel: "v2.4.0 release notes & update history",
+      subLabel: "v2.5.0 release notes & update history",
       icon: GitCommit,
     },
   ];
@@ -217,7 +226,7 @@ export function SeoNavbar({ activePage }: SeoNavbarProps) {
             </nav>
 
             <div className="seo-drawer-footer">
-              <span className="seo-drawer-version">YTaudio v2.4.0 • Free & Web-Based</span>
+              <span className="seo-drawer-version">YTaudio v2.5.0 • Free & Web-Based</span>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import path from "node:path";
 
 /**
  * Binary paths from environment (server-side only).
@@ -40,6 +41,44 @@ export function getFfmpegBin(): string {
   return resolveBinary(fromEnv, "ffmpeg");
 }
 
+/**
+ * Returns the directory containing ffmpeg and ffprobe if an explicit path is configured,
+ * or undefined if ffmpeg is in system PATH.
+ */
+export function getFfmpegDir(): string | undefined {
+  const bin = getFfmpegBin();
+  if (bin && (bin.includes("/") || bin.includes("\\")) && existsSync(bin)) {
+    return path.dirname(bin);
+  }
+  return undefined;
+}
+
+/**
+ * Augment process.env.PATH so spawned child processes (e.g. yt-dlp)
+ * can find ffmpeg and ffprobe if an explicit directory is configured.
+ */
+export function getSpawnEnv(): NodeJS.ProcessEnv {
+  const baseEnv = { ...process.env };
+  const ffmpegDir = getFfmpegDir();
+  const ytdlpBin = getYtDlpBin();
+  const ytdlpDir =
+    ytdlpBin && (ytdlpBin.includes("/") || ytdlpBin.includes("\\")) && existsSync(ytdlpBin)
+      ? path.dirname(ytdlpBin)
+      : undefined;
+
+  const extraDirs: string[] = [];
+  if (ffmpegDir && existsSync(ffmpegDir)) extraDirs.push(ffmpegDir);
+  if (ytdlpDir && existsSync(ytdlpDir)) extraDirs.push(ytdlpDir);
+
+  if (extraDirs.length > 0) {
+    const sep = process.platform === "win32" ? ";" : ":";
+    const currentPath = baseEnv.PATH || "";
+    baseEnv.PATH = `${extraDirs.join(sep)}${sep}${currentPath}`;
+  }
+
+  return baseEnv;
+}
+
 /** App listen port (also used by npm scripts / Docker). */
 export function getAppPort(): number {
   const raw = process.env.PORT?.trim();
@@ -59,5 +98,3 @@ export function getYtDlpCookieArgs(): string[] {
   }
   return [];
 }
-
-

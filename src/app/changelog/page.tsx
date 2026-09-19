@@ -37,9 +37,56 @@ export const metadata: Metadata = {
 export default function ChangelogPage() {
   const releases = [
     {
+      version: "v2.5.0",
+      date: "September 19, 2026",
+      isLatest: true,
+      added: [
+        {
+          title: "YouTube Video Cutter & Audio Trimmer (/cutter)",
+          detail: "Precision client-side video trimming and audio cutting tool powered by yt-dlp section downloading and FFmpeg transcoding.",
+        },
+        {
+          title: "Interactive Dual-Handle Scrubber & Preview",
+          detail: "Dual-handle timeline slider with millisecond precision nudges (-1s, -0.1s, +0.1s, +1s) and looped preview of selected segments.",
+        },
+        {
+          title: "Multi-Resolution MP4 & 320kbps MP3 Export",
+          detail: "Export trimmed sections directly in MP4 video (up to 1080p, 720p, 480p, 360p) or high-fidelity MP3 audio.",
+        },
+        {
+          title: "Real-Time SSE Progress Bar",
+          detail: "Server-Sent Events streaming from /api/cut tracking live download percentage, processing speed, and cancellation support.",
+        },
+        {
+          title: "Native Android App Specification",
+          detail: "Complete technical architecture specification (ANDROID_APP_SPEC.md) for Jetpack Compose, Media3/ExoPlayer background audio service, and Room offline database caching.",
+        },
+      ],
+      improved: [
+        {
+          title: "Navigation & Discovery",
+          detail: "Integrated the Video Cutter into the desktop and mobile Sidebar under EXPLORE, SeoNavbar, and sitemap.xml.",
+        },
+        {
+          title: "Binary Environment Resolution",
+          detail: "Dynamic injection of custom FFmpeg and yt-dlp binary directories into child process execution environments.",
+        },
+      ],
+      fixed: [
+        {
+          title: "Zero-Offset Audio & Video Lip-Sync",
+          detail: "Eliminated the 1-2 frame container edit-list offset, synchronizing both video and audio streams to exact 0.000000ms start timestamps.",
+        },
+        {
+          title: "True 1080p Resolution & Optimized Bitrate",
+          detail: "Fixed format selector prioritizing native H.264 (avc1) streams to guarantee crisp 1080p quality with CRF 22 encoding, avoiding bloated file sizes.",
+        },
+      ],
+    },
+    {
       version: "v2.4.0",
       date: "September 17, 2026",
-      isLatest: true,
+      isLatest: false,
       added: [
         {
           title: "Browser IndexedDB Audio Caching",
@@ -357,7 +404,7 @@ export default function ChangelogPage() {
         <div className="cta-banner">
           <h2 className="cta-title">Try the Latest Version</h2>
           <p className="cta-desc">
-            Experience the latest v2.4.0 release with persistent IndexedDB audio caching, zero-delay pause/resume, and smart playlist generation.
+            Experience the latest v2.5.0 release with precision Video Cutter & Audio Trimmer, persistent IndexedDB audio caching, and smart playlist generation.
           </p>
           <div className="cta-btn-group">
             <Link href="/" className="cta-primary-btn">

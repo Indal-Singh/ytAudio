@@ -17,6 +17,7 @@ import {
   Info,
   Zap,
   GitCommit,
+  Scissors,
 } from "lucide-react";
 import { usePlayer } from "@/context/PlayerContext";
 import "./Sidebar.css";
@@ -130,6 +131,19 @@ export function Sidebar({
         <div className="sidebar-section">
           <div className="section-label">EXPLORE</div>
           <Link
+            href="/cutter"
+            className="nav-item"
+            style={{ textDecoration: "none" }}
+            title="Video Cutter & Trimmer"
+            onClick={onCloseMobile}
+          >
+            <div className="nav-icon-box">
+              <Scissors size={20} color="#ff0033" />
+            </div>
+            <span className="nav-label-full">Video Cutter</span>
+            <span className="nav-label-mini">Cutter</span>
+          </Link>
+          <Link
             href="/about"
             className="nav-item"
             style={{ textDecoration: "none" }}
@@ -176,11 +190,11 @@ export function Sidebar({
             href="/changelog"
             className="tech-badge"
             style={{ textDecoration: "none" }}
-            title="View v2.4.0 release notes"
+            title="View v2.5.0 release notes"
             onClick={onCloseMobile}
           >
             <Sparkles size={14} color="#00f0ff" />
-            <span>v2.4.0 • Changelog</span>
+            <span>v2.5.0 • Changelog</span>
           </Link>
         </div>
       </aside>

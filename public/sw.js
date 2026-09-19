@@ -1,4 +1,4 @@
-const CACHE_NAME = "ytaudio-cache-v2.4.0";
+const CACHE_NAME = "ytaudio-cache-v2.5.0";
 const PRECACHE_ASSETS = [
   "/",
   "/manifest.webmanifest",
@@ -7,6 +7,7 @@ const PRECACHE_ASSETS = [
   "/icon-512.png",
   "/about",
   "/features",
+  "/cutter",
   "/changelog",
 ];
 

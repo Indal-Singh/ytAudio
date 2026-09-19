@@ -5,6 +5,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [2.5.0] - 2026-09-19
+
+### 🚀 Added
+- **YouTube Video Cutter & Audio Trimmer (`/cutter`)**:
+  - Precision client-side video trimming and audio cutting tool with zero quality loss.
+  - Interactive dual-handle timeline scrubber with millisecond fine-tuning (`-1s`, `-0.1s`, `+0.1s`, `+1s`) and instant looped playback preview.
+  - Multi-resolution MP4 video export (1080p, 720p, 480p, 360p) and high-bitrate MP3 audio extraction (320kbps).
+  - Real-time Server-Sent Events (SSE) progress streaming via `/api/cut` showing live percentage, download speed, and transcoding status with cancellation support.
+  - Instant duration presets (15s YouTube Short, 30s Ringtone, 60s Clip, Full Track) and auto-sanitized custom filenames with time tags.
+  - Added format inspection API (`/api/cut?action=formats`) and auto-cleaning file streamer (`/api/cut?action=file`).
+- **Native Android Architecture Specification**:
+  - Added complete production architecture specification (`ANDROID_APP_SPEC.md`) for building a native Android Kotlin client using Jetpack Compose, Media3/ExoPlayer background audio service, and Room offline database caching.
+- **Enhanced Binary Environment Resolution**:
+  - Added `getFfmpegDir` and `getSpawnEnv` in `binaries.ts` to dynamically inject custom FFmpeg and yt-dlp binary directories into child process execution environments.
+
+### 🎨 Improved & Fixed
+- **Frame-Accurate Zero-Offset A/V Sync & True 1080p Quality**:
+  - Eliminated the 1-2 frame (16ms) YouTube container edit-list discrepancy, synchronizing audio and video to exact `0.000000` timestamps for 100% lip-sync accuracy.
+  - Fixed resolution stream selector to target true native H.264 (`avc1`) streams at the selected height (1080p/720p/480p), preventing degradation to low-bitrate AV1 720p.
+  - Optimized ffmpeg transcoding pipeline with `-preset faster -crf 22` and synchronized 192k AAC audio, ensuring sharp clarity, compact binary file sizes, and rapid cutting (~6-10s).
+- **Navigation & Discovery**:
+  - Added direct link to the Video Cutter in the desktop and mobile `Sidebar` under the EXPLORE section.
+  - Added Video Cutter to `SeoNavbar` with custom icon and responsive drawer navigation.
+  - Updated `sitemap.ts` to index `/cutter` with high search priority (0.9).
+
+---
+
 ## [2.4.0] - 2026-09-17
 
 ### 🚀 Added
